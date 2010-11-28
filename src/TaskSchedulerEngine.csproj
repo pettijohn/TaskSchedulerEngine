@@ -118,6 +118,7 @@
     <Compile Include="Configuration\TaskSchedulerEngineSection.cs" />
     <Compile Include="Configuration\TaskSchedulerEngineConfigurationSection.cs" />
     <Compile Include="ConsoleWriteTask.cs" />
+    <Compile Include="Fluent\Schedule.cs" />
     <Compile Include="ITask.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ScheduleDefinition.cs" />
@@ -129,7 +130,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram1.cd" />
-    <None Include="TaskSchedulerEngine Overview.docx" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
