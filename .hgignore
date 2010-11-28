@@ -7,3 +7,4 @@ glob:TestResults/*
 glob:*.vsmdi
 glob:testimpactdata.sdf
 glob:*.webtestresult
+glob:bin/*

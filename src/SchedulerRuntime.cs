@@ -3,14 +3,21 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using TaskSchedulerEngine.Fluent;
 
 namespace TaskSchedulerEngine
 {
     public static class SchedulerRuntime
     {
-        public static void Start()
+        public static void Start(Schedule schedule)
+        {
+            Start(new Schedule[] { schedule });
+        }
+
+        public static void Start(IEnumerable<Schedule> schedule)
         {
             TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
+            pump.Initialize(schedule);
             pump.Pump();
         }
 
@@ -27,19 +34,5 @@ namespace TaskSchedulerEngine
             }
         }
 
-        public static Dictionary<string, ScheduleDefinition> Schedule
-        {
-            get
-            {
-                TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
-                return pump.schedule;
-            }
-        }
-
-        public static ScheduleDefinition GetSchedule(string name)
-        {
-            TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
-            return pump.GetSchedule(name);
-        }
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using TaskSchedulerEngine.Fluent;
 
 namespace TaskSchedulerEngine
 {
@@ -23,9 +24,46 @@ namespace TaskSchedulerEngine
             this.Kind = at.Kind;
         }
 
+        public ScheduleDefinition(Schedule sched)
+        {
+            this.Month = ParseIntArrayToBitfield(sched.Months);
+            this.DayOfMonth = ParseIntArrayToBitfield(sched.DaysOfMonth);
+            this.DayOfWeek = ParseIntArrayToBitfield(sched.DaysOfWeek);
+            this.Hour = ParseIntArrayToBitfield(sched.Hours);
+            this.Minute = ParseIntArrayToBitfield(sched.Minutes);
+            this.Second = ParseIntArrayToBitfield(sched.Seconds);
+            this.Kind = sched.Kind;
+        }
+
         private const string PARSE_BOUNDS_ERROR = "The only acceptable values for scheduling are from 0 to 63, an empty string, or the character '*'.";
 
         public ITask Task { get; internal set; }
+
+        /// <summary>
+        /// Convert an int[] such as {0,15,47} to a bitfield with the 0th, 15th and 47th bits set to 1.
+        /// </summary>
+        public static long ParseIntArrayToBitfield(int[] value)
+        {
+            //Undefined or wildcard
+            if (value == null || value.Length == 0)
+            {
+                return -1;
+            }
+            else
+            {
+                long destinationField = 0;
+                foreach (int nthBit in value)
+                {
+                    if (nthBit > 63 || nthBit < 0)
+                    {
+                        throw new ArgumentOutOfRangeException(PARSE_BOUNDS_ERROR);
+                    }
+                    //1L << n is mathematically the same as 2^^n
+                    destinationField |= (1L << nthBit);
+                }
+                return destinationField;
+            }
+        }
 
         /// <summary>
         /// Convert a string such as "0,15,47" to a bitfield with the 0th, 15th and 47th bits set to 1.
@@ -139,9 +177,6 @@ namespace TaskSchedulerEngine
             if (ConditionsMet != null)
             {
                 EventHandler<ConditionsMetEventArgs> workerDelegate = new EventHandler<ConditionsMetEventArgs>(this.OnConditionsMet);
-                //workerDelegate.BeginInvoke(sender, e, 
-                //    new AsyncCallback(asyncResult => workerDelegate.EndInvoke(asyncResult)), 
-                //    null);
                 workerDelegate.BeginInvoke(sender, e,
                     new AsyncCallback(asyncResult => ((EventHandler<ConditionsMetEventArgs>)asyncResult.AsyncState).EndInvoke(asyncResult)),
                     workerDelegate);

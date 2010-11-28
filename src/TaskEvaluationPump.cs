@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using TaskSchedulerEngine.Configuration;
 using System.Configuration;
+using TaskSchedulerEngine.Fluent;
 
 namespace TaskSchedulerEngine
 {
@@ -35,32 +36,29 @@ namespace TaskSchedulerEngine
         private static TaskEvaluationPump _instance;
         private static object _singletonLock = new object();
 
-        public Dictionary<String,ScheduleDefinition> schedule { get; set; }
+        private List<ScheduleDefinition> _schedule { get; set; }
 
         /// <summary>
         /// Private constructor. Read from config and create ScheduleDefinitions from At objects, plus wire up delegates.
         /// </summary>
         private TaskEvaluationPump()
         {
-            TaskSchedulerEngineConfigurationSection section = (TaskSchedulerEngineConfigurationSection)ConfigurationManager.GetSection("taskSchedulerEngine");
-            this.schedule = new Dictionary<string, ScheduleDefinition>();
+        }
 
-            foreach (At at in section.Schedule)
+        internal void Initialize(IEnumerable<Schedule> fullSchedule)
+        {
+            _schedule = new List<ScheduleDefinition>();
+
+            foreach (Schedule sched in fullSchedule)
             {
-                //Error-check for duplicate key.
-                if (this.schedule.ContainsKey(at.Name))
-                {
-                    throw new ArgumentException(String.Format("You are attempting to add a duplicately-named Schedule to the Scheduling Engine: '{0}'", at.Name, "name"));
-                }
-
                 //Create an evaluation-friendly schedule from the config-friendly schedule.
-                ScheduleDefinition schedule = new ScheduleDefinition(at);
+                ScheduleDefinition schedule = new ScheduleDefinition(sched);
                 
                 //Loop over all of the tasks associated with that schedule.
-                foreach (Task task in at.Execute)
+                foreach (KeyValuePair<Type, String> task in sched.Tasks)
                 {
                     //Create an instance.
-                    object activated = Activator.CreateInstance(Type.GetType(task.Type));
+                    object activated = Activator.CreateInstance(task.Key);
                     ITask itask = activated as ITask;
                     if (itask == null)
                     {
@@ -70,25 +68,16 @@ namespace TaskSchedulerEngine
                     //Wire up the delegate
                     schedule.ConditionsMet += itask.HandleConditionsMetEvent;
                     //Initialize the task.
-                    itask.Initialize(schedule, task.Parameters);
+                    itask.Initialize(schedule, task.Value);
                     //And attach it to its schedule.
                     schedule.Task = itask;
                 }
 
-                this.schedule.Add(schedule.Name, schedule);
+                _schedule.Add(schedule);
             }
         }
 
-        /// <summary>
-        /// Gets the <see cref="ScheduleDefinition"/> specified by the <see cref="M:At.Name"/>
-        /// </summary>
-        /// <param name="scheduleName"></param>
-        /// <returns></returns>
-        internal ScheduleDefinition GetSchedule(string scheduleName)
-        {
-            return this.schedule.Values.Where(s => s.Name == scheduleName).First();
-        }
-
+        
         /// <summary>
         /// Hang onto the next second to evaluate. Thread-safe.
         /// </summary>
@@ -172,7 +161,7 @@ namespace TaskSchedulerEngine
         {
             //TODO : convert secondToEvaluate to a faster format and avoid the extra bit-shifts downstream.
             int i = 0;
-            foreach (ScheduleDefinition scheduleItem in this.schedule.Values)
+            foreach (ScheduleDefinition scheduleItem in _schedule)
 	        {
                 i += scheduleItem.Evaluate(secondToEvaluate) ? 1 : 0;
 	        }

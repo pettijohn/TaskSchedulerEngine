@@ -13,6 +13,7 @@ namespace TaskSchedulerEngine.Fluent
         {
         }
 
+        public int[] Months { get { return _months; } }
         int[] _months;
         /// <summary>
         /// List of months, where 1=Jan, or null for any
@@ -23,6 +24,7 @@ namespace TaskSchedulerEngine.Fluent
             return this;
         }
 
+        public int[] DaysOfMonth { get { return _daysOfMonth; } }
         int[] _daysOfMonth;
         /// <summary>
         /// 1 to 31
@@ -33,6 +35,7 @@ namespace TaskSchedulerEngine.Fluent
             return this;
         }
 
+        public int[] DaysOfWeek { get { return _daysOfWeek; } }
         int[] _daysOfWeek;
         /// <summary>
         /// 0=Sunday, 1=Mon... 6=Saturday
@@ -44,6 +47,7 @@ namespace TaskSchedulerEngine.Fluent
             _daysOfWeek = value;
             return this;
         }
+        public int[] Hours { get { return _hours; } }
         int[] _hours;
         /// <summary>
         /// 0 (12am, start of the day) to 23 (11pm)
@@ -55,6 +59,7 @@ namespace TaskSchedulerEngine.Fluent
             _hours = value;
             return this;
         }
+        public int[] Minutes { get { return _minutes; } }
         int[] _minutes;
         /// <summary>
         /// 0 to 59
@@ -64,6 +69,7 @@ namespace TaskSchedulerEngine.Fluent
             _minutes = value;
             return this;
         }
+        public int[] Seconds { get { return _seconds; } }
         int[] _seconds;
         /// <summary>
         /// 0 to 59
@@ -73,6 +79,7 @@ namespace TaskSchedulerEngine.Fluent
             _seconds = value;
             return this;
         }
+        public DateTimeKind Kind { get { return _kind; } }
         DateTimeKind _kind = DateTimeKind.Utc;
         public Schedule WithUtc()
         {
@@ -85,12 +92,12 @@ namespace TaskSchedulerEngine.Fluent
             return this;
         }
 
+        public List<KeyValuePair<Type, String>> Tasks { get { return _tasks; } }
         List<KeyValuePair<Type, String>> _tasks = new List<KeyValuePair<Type, string>>();
         public Schedule Execute<T>(string parameters) where T : ITask
         {
-            var m = MethodInfo.GetCurrentMethod();
             var value = new KeyValuePair<Type, string>(
-                m.GetGenericArguments().First(),
+                typeof(T),
                 parameters);
             _tasks.Add(value);
             return this;
