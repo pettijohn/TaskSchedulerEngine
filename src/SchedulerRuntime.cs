@@ -21,6 +21,13 @@ namespace TaskSchedulerEngine
             pump.Pump();
         }
 
+        public static void StartWithConfig(string configSection = "taskSchedulerEngine")
+        {
+            TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
+            pump.InitializeFromConfig(configSection);
+            pump.Pump();
+        }
+
         public static void Stop()
         {
             TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();

@@ -15,6 +15,6 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Called after the constructor.
         /// </summary>
-        void Initialize(ScheduleDefinition schedule, string parameters);
+        void Initialize(ScheduleDefinition schedule, object parameters);
     }
 }

@@ -9,8 +9,8 @@ namespace TaskSchedulerEngine.Configuration
     [XmlType("at")]
     public class At
     {
-        [XmlAttribute("name")]
-        public string Name { get; set; }
+        //[XmlAttribute("name")]
+        //public string Name { get; set; }
 
         /// <summary>
         /// "UTC" or "Local"

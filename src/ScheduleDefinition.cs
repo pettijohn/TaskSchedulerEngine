@@ -14,7 +14,7 @@ namespace TaskSchedulerEngine
     {
         public ScheduleDefinition(Configuration.At at)
         {
-            this.Name = at.Name;
+            //this.Name = at.Name;
             this.Month = ParseStringToBitfield(at.Month);
             this.DayOfMonth = ParseStringToBitfield(at.DayOfMonth);
             this.DayOfWeek = ParseStringToBitfield(at.DayOfWeek);
@@ -42,26 +42,58 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Convert an int[] such as {0,15,47} to a bitfield with the 0th, 15th and 47th bits set to 1.
         /// </summary>
-        public static long ParseIntArrayToBitfield(int[] value)
+        public static long ParseIntArrayToBitfield(IEnumerable<int> value)
         {
             //Undefined or wildcard
-            if (value == null || value.Length == 0)
+            if (value == null)
             {
                 return -1;
             }
             else
             {
                 long destinationField = 0;
+                bool hasElements = false;
                 foreach (int nthBit in value)
                 {
                     if (nthBit > 63 || nthBit < 0)
                     {
                         throw new ArgumentOutOfRangeException(PARSE_BOUNDS_ERROR);
                     }
+                    hasElements = true;
                     //1L << n is mathematically the same as 2^^n
                     destinationField |= (1L << nthBit);
                 }
-                return destinationField;
+                return hasElements ? destinationField : -1;
+            }
+        }
+
+        /// <summary>
+        /// Convert a string such as "0,15,47" to an array of integers {0,15,47}
+        /// </summary>
+        private static IEnumerable<int> ParseStingToIntArray(string value)
+        {
+            //Undefined or wildcard
+            if (String.IsNullOrEmpty(value) || value == "*")
+            {
+                yield break;
+            }
+            else
+            {
+                string[] values = value.Split(new char[] { ',' });
+                //If the number is parsed as zero, it becomes 2^^0 => 1.
+                //If the number parsed is one, it becomes 2^^1 => 2.
+                foreach (string numberValue in values)
+                {
+                    int nthBit;
+                    if (Int32.TryParse(numberValue.Trim(), out nthBit))
+                    {
+                        yield return nthBit;
+                    }
+                    else
+                    {
+                        throw new ArgumentOutOfRangeException(PARSE_BOUNDS_ERROR);
+                    }
+                }
             }
         }
 
@@ -70,44 +102,13 @@ namespace TaskSchedulerEngine
         /// </summary>
         public static long ParseStringToBitfield(string value)
         {
-            //TODO : Implement validation.
-
-            //Undefined or wildcard
-            if (String.IsNullOrEmpty(value) || value == "*")
-            {
-                return -1;
-            }
-            else
-            {
-                string[] values = value.Split(new char[] { ',' });
-                long destinationField = 0;
-                //If the number is parsed as zero, it becomes 2^^0 => 1.
-                //If the number parsed is one, it becomes 2^^1 => 2.
-                foreach (string numberValue in values)
-                {
-                    int nthBit;
-                    if (Int32.TryParse(numberValue, out nthBit))
-                    {
-                        if (nthBit > 63 || nthBit < 0)
-                        {
-                            throw new ArgumentOutOfRangeException(PARSE_BOUNDS_ERROR);
-                        }
-                        //1L << n is mathematically the same as 2^^n
-                        destinationField |= (1L << nthBit);
-                    }
-                    else
-                    {
-                        throw new ArgumentOutOfRangeException(PARSE_BOUNDS_ERROR);
-                    }
-                }
-                return destinationField;
-            }
+            return ParseIntArrayToBitfield(ParseStingToIntArray(value));
         }
 
-        /// <summary>
-        /// Primary key of the schedule. 
-        /// </summary>
-        public string Name { get; set; }
+        ///// <summary>
+        ///// Primary key of the schedule. 
+        ///// </summary>
+        //public string Name { get; set; }
         public long Month { get; set; }
         public long DayOfMonth { get; set; }
         public long DayOfWeek { get; set; }

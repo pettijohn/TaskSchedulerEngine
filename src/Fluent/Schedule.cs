@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using TaskSchedulerEngine.Configuration;
 using System.Reflection;
+using System.Configuration;
 
 namespace TaskSchedulerEngine.Fluent
 {
@@ -92,11 +93,11 @@ namespace TaskSchedulerEngine.Fluent
             return this;
         }
 
-        public List<KeyValuePair<Type, String>> Tasks { get { return _tasks; } }
-        List<KeyValuePair<Type, String>> _tasks = new List<KeyValuePair<Type, string>>();
-        public Schedule Execute<T>(string parameters) where T : ITask
+        public List<KeyValuePair<Type, object>> Tasks { get { return _tasks; } }
+        List<KeyValuePair<Type, object>> _tasks = new List<KeyValuePair<Type, object>>();
+        public Schedule Execute<T>(object parameters) where T : ITask
         {
-            var value = new KeyValuePair<Type, string>(
+            var value = new KeyValuePair<Type, object>(
                 typeof(T),
                 parameters);
             _tasks.Add(value);

@@ -45,6 +45,28 @@ namespace TaskSchedulerEngine
         {
         }
 
+        /// <summary>
+        /// Sets up the schedlue from configuration using the specified section, which must be <see cref="TaskSchedulerEngineConfigurationSection"/>.
+        /// </summary>
+        internal void InitializeFromConfig(string sectionName = "taskSchedulerEngine")
+        {
+            _schedule = new List<ScheduleDefinition>();
+
+            TaskSchedulerEngineConfigurationSection section = (TaskSchedulerEngineConfigurationSection)ConfigurationManager.GetSection(sectionName);
+
+            //Loop over all of the tasks associated with that schedule.
+            foreach (At at in section.Schedule)
+            {
+                //Create an evaluation-friendly schedule from the config-friendly schedule.
+                ScheduleDefinition schedule = new ScheduleDefinition(at);
+                foreach (var task in at.Execute)
+                {
+                    WireUpSchedule(schedule, Type.GetType(task.Type), task.Parameters);
+                }
+                _schedule.Add(schedule);
+            }
+        }
+
         internal void Initialize(IEnumerable<Schedule> fullSchedule)
         {
             _schedule = new List<ScheduleDefinition>();
@@ -55,26 +77,36 @@ namespace TaskSchedulerEngine
                 ScheduleDefinition schedule = new ScheduleDefinition(sched);
                 
                 //Loop over all of the tasks associated with that schedule.
-                foreach (KeyValuePair<Type, String> task in sched.Tasks)
+                foreach (KeyValuePair<Type, object> task in sched.Tasks)
                 {
-                    //Create an instance.
-                    object activated = Activator.CreateInstance(task.Key);
-                    ITask itask = activated as ITask;
-                    if (itask == null)
-                    {
-                        throw new ArgumentException("Scheduled Tasks must be of Type ITask.");
-                    }
-
-                    //Wire up the delegate
-                    schedule.ConditionsMet += itask.HandleConditionsMetEvent;
-                    //Initialize the task.
-                    itask.Initialize(schedule, task.Value);
-                    //And attach it to its schedule.
-                    schedule.Task = itask;
+                    WireUpSchedule(schedule, task.Key, task.Value);
                 }
-
                 _schedule.Add(schedule);
             }
+        }
+
+        /// <summary>
+        /// Hooks up the callbacks between a <see cref="ScheduleDefinition"/> and an <see cref="ITask"/>.
+        /// </summary>
+        /// <param name="schedule"></param>
+        /// <param name="task"></param>
+        /// <param name="parameters"></param>
+        private void WireUpSchedule(ScheduleDefinition schedule, Type task, object parameters)
+        {
+            //Create an instance.
+            object activated = Activator.CreateInstance(task);
+            ITask itask = activated as ITask;
+            if (itask == null)
+            {
+                throw new ArgumentException("Scheduled Tasks must be of Type ITask.");
+            }
+
+            //Wire up the delegate
+            schedule.ConditionsMet += itask.HandleConditionsMetEvent;
+            //Initialize the task.
+            itask.Initialize(schedule, parameters);
+            //And attach it to its schedule.
+            schedule.Task = itask;
         }
 
         

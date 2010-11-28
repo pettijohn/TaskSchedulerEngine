@@ -10,13 +10,13 @@ using System.Threading;
 namespace SchedulerEngineRuntimeTests
 {
     [TestClass]
-    public class UnitTest1
+    public class FluentTest
     {
         [TestMethod]
-        public void TestMethod1()
+        public void FluentTest1()
         {
             var s = new Schedule()
-                //.AtSeconds(0, 10, 20, 30, 40, 50)
+                .AtSeconds(0, 10, 20, 30, 40, 50)
                 .WithLocalTime()
                 .Execute<ConsoleWriteTask>();
             SchedulerRuntime.Start(s);
