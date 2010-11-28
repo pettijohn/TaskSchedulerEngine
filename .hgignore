@@ -1,0 +1,9 @@
+glob:*/bin/*
+glob:*/obj/*
+glob:*.ccproj.user
+glob:*.csproj.user
+glob:*.suo
+glob:TestResults/*
+glob:*.vsmdi
+glob:testimpactdata.sdf
+glob:*.webtestresult
