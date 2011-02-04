@@ -14,7 +14,7 @@ namespace TaskSchedulerEngine
     {
         public ScheduleDefinition(Configuration.At at)
         {
-            //this.Name = at.Name;
+            this.Name = at.Name;
             this.Month = ParseStringToBitfield(at.Month);
             this.DayOfMonth = ParseStringToBitfield(at.DayOfMonth);
             this.DayOfWeek = ParseStringToBitfield(at.DayOfWeek);
@@ -70,7 +70,7 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Convert a string such as "0,15,47" to an array of integers {0,15,47}
         /// </summary>
-        private static IEnumerable<int> ParseStingToIntArray(string value)
+        private static IEnumerable<int> ParseStringToIntArray(string value)
         {
             //Undefined or wildcard
             if (String.IsNullOrEmpty(value) || value == "*")
@@ -102,13 +102,30 @@ namespace TaskSchedulerEngine
         /// </summary>
         public static long ParseStringToBitfield(string value)
         {
-            return ParseIntArrayToBitfield(ParseStingToIntArray(value));
+            return ParseIntArrayToBitfield(ParseStringToIntArray(value));
         }
 
-        ///// <summary>
-        ///// Primary key of the schedule. 
-        ///// </summary>
-        //public string Name { get; set; }
+        /// <summary>
+        /// Primary key of the schedule. 
+        /// </summary>
+        private string m_Name;
+        public string Name {
+            get
+            {
+                if (!string.IsNullOrEmpty(m_Name))
+                {
+                    return m_Name;
+                }
+                else
+                {
+                    return Guid.NewGuid().ToString();
+                }
+            }
+            set
+            {
+                m_Name = value;
+            }
+        }
         public long Month { get; set; }
         public long DayOfMonth { get; set; }
         public long DayOfWeek { get; set; }
