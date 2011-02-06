@@ -10,7 +10,25 @@ namespace TaskSchedulerEngine.Configuration
     public class At
     {
         [XmlAttribute("name")]
-        public string Name { get; set; }
+        public string Name
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(_name))
+                {
+                    return _name;
+                }
+                else
+                {
+                    return Guid.NewGuid().ToString();
+                }
+            }
+            set
+            {
+                _name = value;
+            }
+        }
+        string _name;
 
         /// <summary>
         /// "UTC" or "Local"

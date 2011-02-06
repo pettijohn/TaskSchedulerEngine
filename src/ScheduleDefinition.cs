@@ -26,6 +26,7 @@ namespace TaskSchedulerEngine
 
         public ScheduleDefinition(Schedule sched)
         {
+            this.Name = sched.Name;
             this.Month = ParseIntArrayToBitfield(sched.Months);
             this.DayOfMonth = ParseIntArrayToBitfield(sched.DaysOfMonth);
             this.DayOfWeek = ParseIntArrayToBitfield(sched.DaysOfWeek);
@@ -108,24 +109,7 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Primary key of the schedule. 
         /// </summary>
-        private string m_Name;
-        public string Name {
-            get
-            {
-                if (!string.IsNullOrEmpty(m_Name))
-                {
-                    return m_Name;
-                }
-                else
-                {
-                    return Guid.NewGuid().ToString();
-                }
-            }
-            set
-            {
-                m_Name = value;
-            }
-        }
+        public string Name { get; set; }
         public long Month { get; set; }
         public long DayOfMonth { get; set; }
         public long DayOfWeek { get; set; }

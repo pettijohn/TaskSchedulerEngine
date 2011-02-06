@@ -14,6 +14,31 @@ namespace TaskSchedulerEngine.Fluent
         {
         }
 
+        public Schedule(string name)
+        {
+            _name = name;
+        }
+
+        public string Name
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(_name))
+                {
+                    return _name;
+                }
+                else
+                {
+                    return Guid.NewGuid().ToString();
+                }
+            }
+            set
+            {
+                _name = value;
+            }
+        }
+        string _name;
+
         public int[] Months { get { return _months; } }
         int[] _months;
         /// <summary>

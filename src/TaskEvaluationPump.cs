@@ -36,7 +36,7 @@ namespace TaskSchedulerEngine
         private static TaskEvaluationPump _instance;
         private static object _singletonLock = new object();
 
-        private List<ScheduleDefinition> _schedule { get; set; }
+        private Dictionary<string, ScheduleDefinition> _schedule { get; set; }
 
         /// <summary>
         /// Private constructor. Read from config and create ScheduleDefinitions from At objects, plus wire up delegates.
@@ -50,7 +50,7 @@ namespace TaskSchedulerEngine
         /// </summary>
         internal void InitializeFromConfig(string sectionName = "taskSchedulerEngine")
         {
-            _schedule = new List<ScheduleDefinition>();
+            _schedule = new Dictionary<string, ScheduleDefinition>();
 
             TaskSchedulerEngineConfigurationSection section = (TaskSchedulerEngineConfigurationSection)ConfigurationManager.GetSection(sectionName);
 
@@ -63,13 +63,13 @@ namespace TaskSchedulerEngine
                 {
                     WireUpSchedule(schedule, Type.GetType(task.Type), task.Parameters);
                 }
-                _schedule.Add(schedule);
+                _schedule.Add(at.Name, schedule);
             }
         }
 
         internal void Initialize(IEnumerable<Schedule> fullSchedule)
         {
-            _schedule = new List<ScheduleDefinition>();
+            _schedule = new Dictionary<string, ScheduleDefinition>();
 
             foreach (Schedule sched in fullSchedule)
             {
@@ -81,7 +81,7 @@ namespace TaskSchedulerEngine
                 {
                     WireUpSchedule(schedule, task.Key, task.Value);
                 }
-                _schedule.Add(schedule);
+                _schedule.Add(sched.Name, schedule);
             }
         }
 
@@ -108,7 +108,6 @@ namespace TaskSchedulerEngine
             //And attach it to its schedule.
             schedule.Task = itask;
         }
-
         
         /// <summary>
         /// Hang onto the next second to evaluate. Thread-safe.
@@ -131,6 +130,12 @@ namespace TaskSchedulerEngine
         /// </summary>
         public void Pump()
         {
+            // Make sure _schedule existed. It'll be null when user start without any schedule
+            if (_schedule == null)
+            {
+                _schedule = new Dictionary<string, ScheduleDefinition>();
+            }
+
             this.Running.Value = true;
             this.Stopped.Value = false;
 
@@ -193,11 +198,97 @@ namespace TaskSchedulerEngine
         {
             //TODO : convert secondToEvaluate to a faster format and avoid the extra bit-shifts downstream.
             int i = 0;
-            foreach (ScheduleDefinition scheduleItem in _schedule)
-	        {
-                i += scheduleItem.Evaluate(secondToEvaluate) ? 1 : 0;
-	        }
+            foreach (KeyValuePair<string, ScheduleDefinition> scheduleItem in _schedule)
+            {
+                i += scheduleItem.Value.Evaluate(secondToEvaluate) ? 1 : 0;
+            }
             return i;
+        }
+
+        public List<string> ListScheduleName()
+        {
+            List<string> result = new List<string>();
+            lock (_singletonLock)
+            {
+                {
+                    foreach (KeyValuePair<string, ScheduleDefinition> scheduleItem in _schedule)
+                    {
+                        result.Add(scheduleItem.Key);
+                    }
+                }
+            }
+            return result;
+        }
+
+        public bool AddSchedule(Schedule sched)
+        {
+            if (sched != null)
+            {
+                ScheduleDefinition schedule = new ScheduleDefinition(sched);
+                foreach (KeyValuePair<Type, object> task in sched.Tasks)
+                {
+                    WireUpSchedule(schedule, task.Key, task.Value);
+                }
+
+                if (!_schedule.ContainsKey(schedule.Name))
+                {
+                    lock (_singletonLock)
+                    {
+                        if (!_schedule.ContainsKey(schedule.Name))
+                        {
+                            _schedule.Add(schedule.Name, schedule);
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public bool UpdateSchedule(Schedule sched)
+        {
+            if (sched != null)
+            {
+                ScheduleDefinition schedule = new ScheduleDefinition(sched);
+                foreach (KeyValuePair<Type, object> task in sched.Tasks)
+                {
+                    WireUpSchedule(schedule, task.Key, task.Value);
+                }
+
+                if (_schedule.ContainsKey(schedule.Name))
+                {
+                    lock (_singletonLock)
+                    {
+                        if (_schedule.ContainsKey(schedule.Name))
+                        {
+                            _schedule[schedule.Name] = schedule;
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public bool DeleteSchedule(string name)
+        {
+            if (!string.IsNullOrEmpty(name))
+            {
+                if (_schedule.ContainsKey(name))
+                {
+                    lock (_singletonLock)
+                    {
+                        if (_schedule.ContainsKey(name))
+                        {
+                            return _schedule.Remove(name);
+                        }
+                    }
+                }
+            }
+
+            return false;
         }
     }
 }
