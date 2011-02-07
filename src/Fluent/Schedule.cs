@@ -39,6 +39,18 @@ namespace TaskSchedulerEngine.Fluent
         }
         string _name;
 
+
+        /// <summary>
+        /// Specify the name/unique identifier of the schedule
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public Schedule WithName(string name)
+        {
+            Name = name;
+            return this;
+        }
+
         public int[] Months { get { return _months; } }
         int[] _months;
         /// <summary>

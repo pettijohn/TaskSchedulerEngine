@@ -10,9 +10,15 @@ using TaskSchedulerEngine.Fluent;
 namespace TaskSchedulerEngine
 {
     /// <summary>
-    /// A worker thread wakes up at the start of every second and processes all of the At records.
+    /// A worker thread wakes up at the start of every second and processes all 
+    /// of the <see cref="Schedule"/> records.
     /// This class is a Singleton.
     /// </summary>
+    /// <remarks>
+    /// A <see cref="ReaderWriterLockSlim"/> is used to serialize access to the underlying _schedule Dictionary.
+    /// This is necessary since evaluating the tasks happens on a background thread, while adding,
+    /// removing and updating can happen on any thread.
+    /// </remarks>
     internal class TaskEvaluationPump
     {
         /// <summary>
@@ -22,9 +28,9 @@ namespace TaskSchedulerEngine
         {
             if(_instance == null)
             {
-                lock(_singletonLock)
+                lock (typeof(TaskEvaluationPump))
                 {
-                    if(_instance == null)
+                    if (_instance == null)
                     {
                         _instance = new TaskEvaluationPump();
                     }
@@ -34,7 +40,11 @@ namespace TaskSchedulerEngine
         }
 
         private static TaskEvaluationPump _instance;
-        private static object _singletonLock = new object();
+
+        /// <summary>
+        /// Used to serialize access to the _schedule.
+        /// </summary>
+        private static ReaderWriterLockSlim _scheduleLock = new ReaderWriterLockSlim();
 
         private Dictionary<string, ScheduleDefinition> _schedule { get; set; }
 
@@ -50,6 +60,8 @@ namespace TaskSchedulerEngine
         /// </summary>
         internal void InitializeFromConfig(string sectionName = "taskSchedulerEngine")
         {
+            _scheduleLock.EnterWriteLock();
+
             _schedule = new Dictionary<string, ScheduleDefinition>();
 
             TaskSchedulerEngineConfigurationSection section = (TaskSchedulerEngineConfigurationSection)ConfigurationManager.GetSection(sectionName);
@@ -65,10 +77,14 @@ namespace TaskSchedulerEngine
                 }
                 _schedule.Add(at.Name, schedule);
             }
+
+            _scheduleLock.ExitWriteLock();
         }
 
         internal void Initialize(IEnumerable<Schedule> fullSchedule)
         {
+            _scheduleLock.EnterWriteLock();
+
             _schedule = new Dictionary<string, ScheduleDefinition>();
 
             foreach (Schedule sched in fullSchedule)
@@ -83,6 +99,8 @@ namespace TaskSchedulerEngine
                 }
                 _schedule.Add(sched.Name, schedule);
             }
+
+            _scheduleLock.ExitWriteLock();
         }
 
         /// <summary>
@@ -198,30 +216,35 @@ namespace TaskSchedulerEngine
         {
             //TODO : convert secondToEvaluate to a faster format and avoid the extra bit-shifts downstream.
             int i = 0;
+            
+            _scheduleLock.EnterReadLock();
             foreach (KeyValuePair<string, ScheduleDefinition> scheduleItem in _schedule)
             {
                 i += scheduleItem.Value.Evaluate(secondToEvaluate) ? 1 : 0;
             }
+            _scheduleLock.ExitReadLock();
+
             return i;
         }
 
-        public List<string> ListScheduleName()
+        /// <summary>
+        /// Gets the names of the running schedules.
+        /// </summary>
+        public IEnumerable<string> ListScheduleName()
         {
-            List<string> result = new List<string>();
-            lock (_singletonLock)
-            {
-                {
-                    foreach (KeyValuePair<string, ScheduleDefinition> scheduleItem in _schedule)
-                    {
-                        result.Add(scheduleItem.Key);
-                    }
-                }
-            }
-            return result;
+            _scheduleLock.EnterReadLock();
+            var names = _schedule.Keys.ToArray();
+            _scheduleLock.ExitWriteLock();
+
+            return names;
         }
 
+        /// <summary>
+        /// Adds a schedule at runtime
+        /// </summary>
         public bool AddSchedule(Schedule sched)
         {
+            var added = false;
             if (sched != null)
             {
                 ScheduleDefinition schedule = new ScheduleDefinition(sched);
@@ -230,24 +253,29 @@ namespace TaskSchedulerEngine
                     WireUpSchedule(schedule, task.Key, task.Value);
                 }
 
+
+                _scheduleLock.EnterUpgradeableReadLock();
                 if (!_schedule.ContainsKey(schedule.Name))
                 {
-                    lock (_singletonLock)
-                    {
-                        if (!_schedule.ContainsKey(schedule.Name))
-                        {
-                            _schedule.Add(schedule.Name, schedule);
-                            return true;
-                        }
-                    }
+                    _scheduleLock.EnterWriteLock();
+                    if (!_schedule.ContainsKey(schedule.Name))
+                        _schedule.Add(schedule.Name, schedule);
+                    _scheduleLock.ExitWriteLock();
+                    
+                    added = true;
                 }
+                _scheduleLock.ExitUpgradeableReadLock();
             }
 
-            return false;
+            return added;
         }
 
+        /// <summary>
+        /// Updates the schedule with a matching name.
+        /// </summary>
         public bool UpdateSchedule(Schedule sched)
         {
+            var updated = false;
             if (sched != null)
             {
                 ScheduleDefinition schedule = new ScheduleDefinition(sched);
@@ -256,39 +284,42 @@ namespace TaskSchedulerEngine
                     WireUpSchedule(schedule, task.Key, task.Value);
                 }
 
+                _scheduleLock.EnterUpgradeableReadLock();
                 if (_schedule.ContainsKey(schedule.Name))
                 {
-                    lock (_singletonLock)
-                    {
-                        if (_schedule.ContainsKey(schedule.Name))
-                        {
-                            _schedule[schedule.Name] = schedule;
-                            return true;
-                        }
-                    }
+                    _scheduleLock.EnterWriteLock();
+                    if (_schedule.ContainsKey(schedule.Name))
+                        _schedule[schedule.Name] = schedule;
+                    _scheduleLock.ExitWriteLock();
+                    updated = true;
                 }
+                _scheduleLock.ExitUpgradeableReadLock();
             }
 
-            return false;
+            return updated;
         }
 
+        /// <summary>
+        /// Deletes the schedule specified by its name.
+        /// </summary>
+        /// <returns>True if deleted</returns>
         public bool DeleteSchedule(string name)
         {
-            if (!string.IsNullOrEmpty(name))
-            {
-                if (_schedule.ContainsKey(name))
-                {
-                    lock (_singletonLock)
-                    {
-                        if (_schedule.ContainsKey(name))
-                        {
-                            return _schedule.Remove(name);
-                        }
-                    }
-                }
-            }
+            if (string.IsNullOrEmpty(name))
+                return false;
 
-            return false;
+            var deleted = false;
+            _scheduleLock.EnterUpgradeableReadLock();
+            if (_schedule.ContainsKey(name))
+            {
+                _scheduleLock.EnterWriteLock();
+                if (_schedule.ContainsKey(name))
+                    deleted = _schedule.Remove(name);
+                _scheduleLock.ExitWriteLock();
+            }
+            _scheduleLock.ExitUpgradeableReadLock();
+            
+            return deleted;
         }
     }
 }

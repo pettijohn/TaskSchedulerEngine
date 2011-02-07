@@ -15,13 +15,22 @@ namespace SchedulerEngineRuntimeTests
         [TestMethod]
         public void FluentTest1()
         {
+            //Verify output. Should see one or two 10-second ticks, one or two 1,6 ticks, and one or two 2,7 ticks.
             var s = new Schedule()
                 .AtSeconds(0, 10, 20, 30, 40, 50)
                 .WithLocalTime()
                 .Execute<ConsoleWriteTask>();
             SchedulerRuntime.Start(s);
 
-            Thread.Sleep(new TimeSpan(0, 0, 11));
+            Thread.Sleep(new TimeSpan(0, 0, 2));
+
+            SchedulerRuntime.AddSchedule(new Schedule().WithName("OneSix").AtSeconds(1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56).Execute<ConsoleWriteTask>());
+
+            Thread.Sleep(new TimeSpan(0, 0, 6));
+
+            SchedulerRuntime.UpdateSchedule(new Schedule().WithName("OneSix").AtSeconds(2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57).Execute<ConsoleWriteTask>());
+
+            Thread.Sleep(new TimeSpan(0, 0, 6));
 
             SchedulerRuntime.Stop();
         }

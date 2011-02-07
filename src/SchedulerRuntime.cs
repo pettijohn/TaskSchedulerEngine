@@ -48,7 +48,7 @@ namespace TaskSchedulerEngine
             }
         }
 
-        public static List<string> ListScheduleName()
+        public static IEnumerable<string> ListScheduleName()
         {
             TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
             return pump.ListScheduleName();
