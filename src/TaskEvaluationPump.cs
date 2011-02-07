@@ -133,15 +133,10 @@ namespace TaskSchedulerEngine
         private SerializedAccessProperty<DateTime> NextSecondToEvaluate = new SerializedAccessProperty<DateTime>();
 
         /// <summary>
-        /// A flag to determine whether or not the pump should be running.
+        /// A flag to determine whether or not the pump is running.
         /// </summary>
-        public SerializedAccessProperty<bool> Running = new SerializedAccessProperty<bool>(true);
+        private SerializedAccessProperty<TaskPumpRunState> RunState = new SerializedAccessProperty<TaskPumpRunState>(TaskPumpRunState.Stopped);
 
-        /// <summary>
-        /// A flag to determine whether or not the pump is stopped. This exists because there may be lag from when a 
-        /// stop is requested to when it is actually finished stopping.
-        /// </summary>
-        public SerializedAccessProperty<bool> Stopped = new SerializedAccessProperty<bool>(false);
 
         /// <summary>
         /// Start the evaluation pump on a worker thread.
@@ -154,16 +149,27 @@ namespace TaskSchedulerEngine
                 _schedule = new Dictionary<string, ScheduleDefinition>();
             }
 
-            this.Running.Value = true;
-            this.Stopped.Value = false;
+            RunState.Value = TaskPumpRunState.Running;
 
             Action workerThreadDelegate = this.PumpInternal;
             //Invoke the worker on its own thread. When the thread finishes, call EndInvoke and mark the pump as stopped.
             workerThreadDelegate.BeginInvoke(new AsyncCallback(asyncResult =>
                 {
                     ((Action)asyncResult.AsyncState).EndInvoke(asyncResult);
-                    Stopped.Value = true;
+                    RunState.Value = TaskPumpRunState.Stopped;
                 }), workerThreadDelegate);
+        }
+
+        public void Stop()
+        {
+            //Request that it stop running.
+            RunState.Value = TaskPumpRunState.Stopping;
+
+            //Wait for it to stop running.
+            while (RunState.Value != TaskPumpRunState.Stopped)
+            {
+                Thread.Sleep(10);
+            }
         }
 
         /// <summary>
@@ -184,7 +190,7 @@ namespace TaskSchedulerEngine
             NextSecondToEvaluate.Value = utcNowFloor.AddSeconds(1);
 
             //Begin the evaluation pump
-            while (Running.Value)
+            while (RunState.Value == TaskPumpRunState.Running)
             {
                 //Determine how long from now it is until the nextSecondToEvaluate occurs.
                 //In the general case, timeUntilNextEvaluation will be less than one second in the future.
@@ -234,7 +240,7 @@ namespace TaskSchedulerEngine
         {
             _scheduleLock.EnterReadLock();
             var names = _schedule.Keys.ToArray();
-            _scheduleLock.ExitWriteLock();
+            _scheduleLock.ExitReadLock();
 
             return names;
         }

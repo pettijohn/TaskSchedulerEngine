@@ -62,6 +62,7 @@ namespace SchedulerEngineRuntimeTests
         #endregion
 
         [TestMethod]
+        [Ignore]
         public void ConfigTest1()
         {
             SchedulerRuntime.StartWithConfig("taskSchedulerEngine");

@@ -38,14 +38,7 @@ namespace TaskSchedulerEngine
         public static void Stop()
         {
             TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
-            //Request that it stop running.
-            pump.Running.Value = false;
-
-            //Wait for it to stop running.
-            while (pump.Stopped.Value == false)
-            {
-                Thread.Sleep(10);
-            }
+            pump.Stop();
         }
 
         public static IEnumerable<string> ListScheduleName()

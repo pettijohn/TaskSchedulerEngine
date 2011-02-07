@@ -19,20 +19,75 @@ namespace SchedulerEngineRuntimeTests
             var s = new Schedule()
                 .AtSeconds(0, 10, 20, 30, 40, 50)
                 .WithLocalTime()
-                .Execute<ConsoleWriteTask>();
+                .Execute<TenSecTask>();
             SchedulerRuntime.Start(s);
 
             Thread.Sleep(new TimeSpan(0, 0, 2));
 
-            SchedulerRuntime.AddSchedule(new Schedule().WithName("OneSix").AtSeconds(1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56).Execute<ConsoleWriteTask>());
+            SchedulerRuntime.AddSchedule(new Schedule().WithName("OneSix").AtSeconds(1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56).Execute<OneSixTask>());
 
             Thread.Sleep(new TimeSpan(0, 0, 6));
 
-            SchedulerRuntime.UpdateSchedule(new Schedule().WithName("OneSix").AtSeconds(2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57).Execute<ConsoleWriteTask>());
+            SchedulerRuntime.UpdateSchedule(new Schedule().WithName("OneSix").AtSeconds(2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57).Execute<TwoSevenTask>());
 
             Thread.Sleep(new TimeSpan(0, 0, 6));
 
             SchedulerRuntime.Stop();
+            Console.WriteLine("Stopped");
+
+            Assert.IsTrue(TenSecTask.Ticked);
+            Assert.IsTrue(OneSixTask.Ticked);
+            Assert.IsTrue(TwoSevenTask.Ticked);
         }
+
+        class TenSecTask : ITask
+        {
+            public static bool Ticked = false;
+            public void HandleConditionsMetEvent(object sender, ConditionsMetEventArgs e)
+            {
+                if (!new int[] {0, 10, 20, 30, 40, 50}.Contains(e.TimeScheduledUtc.Second))
+                    throw new InvalidOperationException();
+
+                Ticked = true;
+            }
+
+            public void Initialize(ScheduleDefinition schedule, object parameters)
+            {
+            }
+        }
+
+        class OneSixTask : ITask
+        {
+            public static bool Ticked = false;
+            public void HandleConditionsMetEvent(object sender, ConditionsMetEventArgs e)
+            {
+                if (!new int[] { 1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56 }.Contains(e.TimeScheduledUtc.Second))
+                    throw new InvalidOperationException();
+
+                Ticked = true;
+            }
+
+            public void Initialize(ScheduleDefinition schedule, object parameters)
+            {
+            }
+        }
+
+        class TwoSevenTask : ITask
+        {
+            public static bool Ticked = false;
+            public void HandleConditionsMetEvent(object sender, ConditionsMetEventArgs e)
+            {
+                if (!new int[] { 2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57 }.Contains(e.TimeScheduledUtc.Second))
+                    throw new InvalidOperationException();
+
+                Ticked = true;
+            }
+
+            public void Initialize(ScheduleDefinition schedule, object parameters)
+            {
+            }
+        }
+
+
     }
 }
