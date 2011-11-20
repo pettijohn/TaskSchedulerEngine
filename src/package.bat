@@ -1,0 +1,1 @@
+nuget pack TaskSchedulerEngine.csproj -Properties SolutionFile=..\sln\TaskSchedulerEngine.sln;Configuration=Release
