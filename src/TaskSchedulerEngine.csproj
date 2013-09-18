@@ -42,7 +42,8 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
@@ -113,10 +114,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Configuration\At.cs" />
-    <Compile Include="Configuration\Task.cs" />
-    <Compile Include="Configuration\TaskSchedulerEngineSection.cs" />
-    <Compile Include="Configuration\TaskSchedulerEngineConfigurationSection.cs" />
     <Compile Include="ConsoleWriteTask.cs" />
     <Compile Include="Fluent\Schedule.cs" />
     <Compile Include="ITask.cs" />

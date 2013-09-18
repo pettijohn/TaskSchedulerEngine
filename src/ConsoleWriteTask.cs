@@ -1,7 +1,7 @@
 ﻿/* 
  * Task Scheduler Engine
  * Released under the BSD License
- * http://taskschedulerengine.codeplex.com
+ * https://github.com/pettijohn/TaskSchedulerEngine
  */
 using System;
 using System.Collections.Generic;
@@ -14,7 +14,7 @@ namespace TaskSchedulerEngine
     {
         #region ITask Members
 
-        public void HandleConditionsMetEvent(object sender, ConditionsMetEventArgs e)
+        public void Tick(object sender, TickEventArgs e)
         {
             Console.WriteLine("{0}: Event intended for {1:o} occured at {2:o}", e.TaskId, e.TimeScheduledUtc, e.TimeSignaledUtc);
         }

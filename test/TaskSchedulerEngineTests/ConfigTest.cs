@@ -61,13 +61,13 @@ namespace SchedulerEngineRuntimeTests
         //
         #endregion
 
-        [TestMethod]
-        [Ignore]
-        public void ConfigTest1()
-        {
-            SchedulerRuntime.StartWithConfig("taskSchedulerEngine");
-            Thread.Sleep(new TimeSpan(0, 0, 11));
-            SchedulerRuntime.Stop();
-        }
+        //[TestMethod]
+        //[Ignore]
+        //public void ConfigTest1()
+        //{
+        //    SchedulerRuntime.StartWithConfig("taskSchedulerEngine");
+        //    Thread.Sleep(new TimeSpan(0, 0, 11));
+        //    SchedulerRuntime.Stop();
+        //}
     }
 }

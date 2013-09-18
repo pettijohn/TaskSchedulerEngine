@@ -1,7 +1,7 @@
 ﻿/* 
  * Task Scheduler Engine
  * Released under the BSD License
- * http://taskschedulerengine.codeplex.com
+ * https://github.com/pettijohn/TaskSchedulerEngine
  */
 using System;
 using System.Collections.Generic;
@@ -17,18 +17,6 @@ namespace TaskSchedulerEngine
     /// </summary>
     public class ScheduleDefinition
     {
-        public ScheduleDefinition(Configuration.At at)
-        {
-            this.Name = at.Name;
-            this.Month = ParseStringToBitfield(at.Month);
-            this.DayOfMonth = ParseStringToBitfield(at.DayOfMonth);
-            this.DayOfWeek = ParseStringToBitfield(at.DayOfWeek);
-            this.Hour = ParseStringToBitfield(at.Hour);
-            this.Minute = ParseStringToBitfield(at.Minute);
-            this.Second = ParseStringToBitfield(at.Second);
-            this.Kind = at.Kind;
-        }
-
         public ScheduleDefinition(Schedule sched)
         {
             this.Name = sched.Name;
@@ -148,12 +136,12 @@ namespace TaskSchedulerEngine
 
             if (match)
             {
-                ConditionsMetEventArgs e = new ConditionsMetEventArgs();
+                TickEventArgs e = new TickEventArgs();
                 e.TimeScheduledUtc = inputValueUtc;
                 e.TimeSignaledUtc = DateTime.UtcNow;
                 e.TaskId = TaskId.Increment();
                 e.ScheduleDefinition = this;
-                OnConditionsMetAsync(this, e);
+                OnTickAsync(this, e);
             }
 
             return match;
@@ -163,14 +151,14 @@ namespace TaskSchedulerEngine
         /// Occurs when the conditions specified by this ScheduleDefinition have been met; that is to say, 
         /// when NOW is a moment that this Definition is looking for.
         /// </summary>
-        public event EventHandler<ConditionsMetEventArgs> ConditionsMet;
+        public event EventHandler<TickEventArgs> ConditionsMet;
 
         /// <summary>
         /// Raises a ConditionsMet event.
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        protected virtual void OnConditionsMet(object sender, ConditionsMetEventArgs e)
+        protected virtual void OnConditionsMet(object sender, TickEventArgs e)
         {
             if (ConditionsMet != null)
                 ConditionsMet(sender, e);
@@ -179,13 +167,13 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Calls OnConditionsMet on its own thread, which then raises the ConditionsMet event for each of the delegates wired up.
         /// </summary>
-        protected virtual void OnConditionsMetAsync(object sender, ConditionsMetEventArgs e)
+        protected virtual void OnTickAsync(object sender, TickEventArgs e)
         {
             if (ConditionsMet != null)
             {
-                EventHandler<ConditionsMetEventArgs> workerDelegate = new EventHandler<ConditionsMetEventArgs>(this.OnConditionsMet);
+                EventHandler<TickEventArgs> workerDelegate = new EventHandler<TickEventArgs>(this.OnConditionsMet);
                 workerDelegate.BeginInvoke(sender, e,
-                    new AsyncCallback(asyncResult => ((EventHandler<ConditionsMetEventArgs>)asyncResult.AsyncState).EndInvoke(asyncResult)),
+                    new AsyncCallback(asyncResult => ((EventHandler<TickEventArgs>)asyncResult.AsyncState).EndInvoke(asyncResult)),
                     workerDelegate);
             }
         }

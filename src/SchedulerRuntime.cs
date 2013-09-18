@@ -1,7 +1,7 @@
 ﻿/* 
  * Task Scheduler Engine
  * Released under the BSD License
- * http://taskschedulerengine.codeplex.com
+ * https://github.com/pettijohn/TaskSchedulerEngine
  */
 using System;
 using System.Collections.Generic;
@@ -12,31 +12,28 @@ using TaskSchedulerEngine.Fluent;
 
 namespace TaskSchedulerEngine
 {
-    public static class SchedulerRuntime
+    public class SchedulerRuntime
     {
-        // Allow user to start without any schedule and gradually add one as needed
-        public static void Start()
+        /// <summary>
+        /// Creates a new Scheduler Runtime and begins the evaluation pump that runs every second
+        /// </summary>
+        public SchedulerRuntime()
         {
             TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
             pump.Pump();
         }
 
-        public static void Start(Schedule schedule)
+        public void Add(Schedule schedule)
         {
-            Start(new Schedule[] { schedule });
+            Add(new Schedule[] { schedule });
         }
 
-        public static void Start(IEnumerable<Schedule> schedule)
+        /// <summary>
+        /// Add a range of user-friendly <see cref="Schedule"/> to the current <see cref="TaskEvaluationPump"/>
+        /// </summary>
+        public void Add(IEnumerable<Schedule> schedule)
         {
             TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
-            pump.Initialize(schedule);
-            pump.Pump();
-        }
-
-        public static void StartWithConfig(string configSection = "taskSchedulerEngine")
-        {
-            TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
-            pump.InitializeFromConfig(configSection);
             pump.Pump();
         }
 
@@ -52,10 +49,14 @@ namespace TaskSchedulerEngine
             return pump.ListScheduleName();
         }
 
+        /// <summary>
+        /// Add a single user-friendly <see cref="Schedule"/> to the current <see cref="TaskEvaluationPump"/>
+        /// </summary>
+        /// <param name="schedule"></param>
         public static bool AddSchedule(Schedule schedule)
         {
             TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
-            return pump.AddSchedule(schedule);
+            return pump.AddRange(schedule);
         }
 
         public static bool UpdateSchedule(Schedule schedule)

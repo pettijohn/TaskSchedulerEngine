@@ -1,14 +1,13 @@
 ﻿/* 
  * Task Scheduler Engine
  * Released under the BSD License
- * http://taskschedulerengine.codeplex.com
+ * https://github.com/pettijohn/TaskSchedulerEngine
  */
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using TaskSchedulerEngine.Configuration;
 using System.Configuration;
 using TaskSchedulerEngine.Fluent;
 
@@ -26,11 +25,15 @@ namespace TaskSchedulerEngine
     /// </remarks>
     internal class TaskEvaluationPump
     {
+
+        #region Singleton
+
         /// <summary>
         /// Singleton to get the instance.
         /// </summary>
         public static TaskEvaluationPump GetInstance()
         {
+            //FIXME - should this be responsible for being its own singleton, or is that an antipattern?
             if(_instance == null)
             {
                 lock (typeof(TaskEvaluationPump))
@@ -44,6 +47,10 @@ namespace TaskSchedulerEngine
             return _instance;
         }
 
+        #endregion 
+
+        #region Private Fields
+
         private static TaskEvaluationPump _instance;
 
         /// <summary>
@@ -54,85 +61,6 @@ namespace TaskSchedulerEngine
         private Dictionary<string, ScheduleDefinition> _schedule { get; set; }
 
         /// <summary>
-        /// Private constructor. Read from config and create ScheduleDefinitions from At objects, plus wire up delegates.
-        /// </summary>
-        private TaskEvaluationPump()
-        {
-        }
-
-        /// <summary>
-        /// Sets up the schedlue from configuration using the specified section, which must be <see cref="TaskSchedulerEngineConfigurationSection"/>.
-        /// </summary>
-        internal void InitializeFromConfig(string sectionName = "taskSchedulerEngine")
-        {
-            _scheduleLock.EnterWriteLock();
-
-            _schedule = new Dictionary<string, ScheduleDefinition>();
-
-            TaskSchedulerEngineConfigurationSection section = (TaskSchedulerEngineConfigurationSection)ConfigurationManager.GetSection(sectionName);
-
-            //Loop over all of the tasks associated with that schedule.
-            foreach (At at in section.Schedule)
-            {
-                //Create an evaluation-friendly schedule from the config-friendly schedule.
-                ScheduleDefinition schedule = new ScheduleDefinition(at);
-                foreach (var task in at.Execute)
-                {
-                    WireUpSchedule(schedule, Type.GetType(task.Type), task.Parameters);
-                }
-                _schedule.Add(at.Name, schedule);
-            }
-
-            _scheduleLock.ExitWriteLock();
-        }
-
-        internal void Initialize(IEnumerable<Schedule> fullSchedule)
-        {
-            _scheduleLock.EnterWriteLock();
-
-            _schedule = new Dictionary<string, ScheduleDefinition>();
-
-            foreach (Schedule sched in fullSchedule)
-            {
-                //Create an evaluation-friendly schedule from the config-friendly schedule.
-                ScheduleDefinition schedule = new ScheduleDefinition(sched);
-                
-                //Loop over all of the tasks associated with that schedule.
-                foreach (KeyValuePair<Type, object> task in sched.Tasks)
-                {
-                    WireUpSchedule(schedule, task.Key, task.Value);
-                }
-                _schedule.Add(sched.Name, schedule);
-            }
-
-            _scheduleLock.ExitWriteLock();
-        }
-
-        /// <summary>
-        /// Hooks up the callbacks between a <see cref="ScheduleDefinition"/> and an <see cref="ITask"/>.
-        /// </summary>
-        /// <param name="schedule"></param>
-        /// <param name="task"></param>
-        /// <param name="parameters"></param>
-        private void WireUpSchedule(ScheduleDefinition schedule, Type task, object parameters)
-        {
-            //Create an instance.
-            object activated = Activator.CreateInstance(task);
-            ITask itask = activated as ITask;
-            if (itask == null)
-            {
-                throw new ArgumentException("Scheduled Tasks must be of Type ITask.");
-            }
-
-            //Wire up the delegate
-            schedule.ConditionsMet += itask.HandleConditionsMetEvent;
-            //Initialize the task.
-            itask.Initialize(schedule, parameters);
-            //And attach it to its schedule.
-            schedule.Task = itask;
-        }
-        
-        /// <summary>
         /// Hang onto the next second to evaluate. Thread-safe.
         /// </summary>
         private SerializedAccessProperty<DateTime> NextSecondToEvaluate = new SerializedAccessProperty<DateTime>();
@@ -142,11 +70,55 @@ namespace TaskSchedulerEngine
         /// </summary>
         private SerializedAccessProperty<TaskPumpRunState> RunState = new SerializedAccessProperty<TaskPumpRunState>(TaskPumpRunState.Stopped);
 
+        #endregion
 
         /// <summary>
-        /// Start the evaluation pump on a worker thread.
+        /// Private constructor. Read from config and create ScheduleDefinitions from At objects, plus wire up delegates.
         /// </summary>
-        public void Pump()
+        private TaskEvaluationPump()
+        {
+        }
+
+        
+
+        /// <summary>
+        /// Hooks up the callbacks between a <see cref="ScheduleDefinition"/> and an <see cref="ITask"/>.
+        /// </summary>
+        /// <param name="schedule"></param>
+        /// <param name="taskType"></param>
+        /// <param name="parameters"></param>
+        private void WireUpSchedule(ScheduleDefinition schedule, Type taskType, object parameters)
+        {
+            //Create an instance.
+            //FIXME - use real dependency injection
+            object activated = Activate(taskType);
+            ITask itask = activated as ITask;
+            if (itask == null)
+            {
+                throw new ArgumentException("Scheduled Tasks must be of Type ITask.");
+            }
+
+            //Wire up the delegate
+            schedule.ConditionsMet += itask.Tick;
+            //Initialize the task.
+            itask.Initialize(schedule, parameters);
+            //And attach it to its schedule.
+            schedule.Task = itask;
+        }
+
+        /// <summary>
+        /// A runtime-pluggable func for creating instances of types
+        /// </summary>
+        public Func<Type, object> Activate = (taskType) =>
+        {
+            return Activator.CreateInstance(taskType);
+        };
+        
+
+        /// <summary>
+        /// Create the evaluation pump on a worker thread.
+        /// </summary>
+        internal void Pump()
         {
             // Make sure _schedule existed. It'll be null when user start without any schedule
             if (_schedule == null)
@@ -173,6 +145,7 @@ namespace TaskSchedulerEngine
             //Wait for it to stop running.
             while (RunState.Value != TaskPumpRunState.Stopped)
             {
+                //FIXME - shouldn't block the main thread
                 Thread.Sleep(10);
             }
         }
@@ -250,65 +223,47 @@ namespace TaskSchedulerEngine
             return names;
         }
 
-        /// <summary>
-        /// Adds a schedule at runtime
-        /// </summary>
-        public bool AddSchedule(Schedule sched)
+        public void Add(Schedule friendlySchedule)
         {
-            var added = false;
-            if (sched != null)
+            AddRange(new[] { friendlySchedule });
+        }
+
+
+        /// <summary>
+        /// Adds or updates (keyed on 'name') a schedule at runtime
+        /// </summary>
+        public void AddRange(IEnumerable<Schedule> fullSchedule)
+        {
+            foreach (Schedule friendlySched in fullSchedule)
             {
-                ScheduleDefinition schedule = new ScheduleDefinition(sched);
-                foreach (KeyValuePair<Type, object> task in sched.Tasks)
+                if (friendlySched != null)
                 {
-                    WireUpSchedule(schedule, task.Key, task.Value);
-                }
+                    //Create an evaluation-friendly schedule from the config-friendly schedule.
+                    ScheduleDefinition schedule = new ScheduleDefinition(friendlySched);
 
+                    //Loop over all of the tasks associated with that schedule.
+                    foreach (KeyValuePair<Type, object> task in friendlySched.Tasks)
+                    {
+                        WireUpSchedule(schedule, task.Key, task.Value);
+                    }
 
-                _scheduleLock.EnterUpgradeableReadLock();
-                if (!_schedule.ContainsKey(schedule.Name))
-                {
                     _scheduleLock.EnterWriteLock();
                     if (!_schedule.ContainsKey(schedule.Name))
-                        _schedule.Add(schedule.Name, schedule);
+                    {
+                        if (!_schedule.ContainsKey(schedule.Name))
+                            _schedule.Add(schedule.Name, schedule);
+                    }
+                    else
+                    {
+                        if (_schedule.ContainsKey(schedule.Name))
+                            _schedule[schedule.Name] = schedule;
+                    }
                     _scheduleLock.ExitWriteLock();
-                    
-                    added = true;
                 }
-                _scheduleLock.ExitUpgradeableReadLock();
-            }
 
-            return added;
+            }
         }
 
-        /// <summary>
-        /// Updates the schedule with a matching name.
-        /// </summary>
-        public bool UpdateSchedule(Schedule sched)
-        {
-            var updated = false;
-            if (sched != null)
-            {
-                ScheduleDefinition schedule = new ScheduleDefinition(sched);
-                foreach (KeyValuePair<Type, object> task in sched.Tasks)
-                {
-                    WireUpSchedule(schedule, task.Key, task.Value);
-                }
-
-                _scheduleLock.EnterUpgradeableReadLock();
-                if (_schedule.ContainsKey(schedule.Name))
-                {
-                    _scheduleLock.EnterWriteLock();
-                    if (_schedule.ContainsKey(schedule.Name))
-                        _schedule[schedule.Name] = schedule;
-                    _scheduleLock.ExitWriteLock();
-                    updated = true;
-                }
-                _scheduleLock.ExitUpgradeableReadLock();
-            }
-
-            return updated;
-        }
 
         /// <summary>
         /// Deletes the schedule specified by its name.

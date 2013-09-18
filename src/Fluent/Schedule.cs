@@ -1,13 +1,12 @@
 ﻿/* 
  * Task Scheduler Engine
  * Released under the BSD License
- * http://taskschedulerengine.codeplex.com
+ * https://github.com/pettijohn/TaskSchedulerEngine
  */
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using TaskSchedulerEngine.Configuration;
 using System.Reflection;
 using System.Configuration;
 
@@ -17,6 +16,7 @@ namespace TaskSchedulerEngine.Fluent
     {
         public Schedule()
         {
+            _name = Guid.NewGuid().ToString();
         }
 
         public Schedule(string name)
@@ -28,14 +28,7 @@ namespace TaskSchedulerEngine.Fluent
         {
             get
             {
-                if (!string.IsNullOrEmpty(_name))
-                {
-                    return _name;
-                }
-                else
-                {
-                    return Guid.NewGuid().ToString();
-                }
+                return _name;
             }
             set
             {

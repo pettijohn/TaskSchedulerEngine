@@ -1,7 +1,7 @@
 ﻿/* 
  * Task Scheduler Engine
  * Released under the BSD License
- * http://taskschedulerengine.codeplex.com
+ * https://github.com/pettijohn/TaskSchedulerEngine
  */
 using System;
 using System.Collections.Generic;
@@ -23,7 +23,7 @@ namespace TaskSchedulerEngine
         }
 
         private T _internal;
-        private ReaderWriterLockSlim readerWriterLock = new ReaderWriterLockSlim();
+        private object _lockObject = new object();
         
         /// <summary>
         /// Wraps a variable in a <see cref="ReaderWriterLockSlim"/> so that all access to it is serialized. 
@@ -33,26 +33,16 @@ namespace TaskSchedulerEngine
         {
             get
             {
-                readerWriterLock.EnterReadLock();
-                try
+                lock(_lockObject)
                 {
                     return _internal;
-                }
-                finally
-                {
-                    readerWriterLock.ExitReadLock();
                 }
             }
             set
             {
-                readerWriterLock.EnterWriteLock();
-                try
+                lock(_lockObject)
                 {
                     _internal = value;
-                }
-                finally
-                {
-                    readerWriterLock.ExitWriteLock();
                 }
             }
         }

@@ -1,7 +1,7 @@
 ﻿/* 
  * Task Scheduler Engine
  * Released under the BSD License
- * http://taskschedulerengine.codeplex.com
+ * https://github.com/pettijohn/TaskSchedulerEngine
  */
 using System;
 using System.Collections.Generic;
@@ -10,7 +10,7 @@ using System.Text;
 
 namespace TaskSchedulerEngine
 {
-    public class ConditionsMetEventArgs : EventArgs
+    public class TickEventArgs : EventArgs
     {
         public DateTime TimeSignaledUtc { get; set; }
         public DateTime TimeScheduledUtc { get; set; }

@@ -1,7 +1,7 @@
 ﻿/* 
  * Task Scheduler Engine
  * Released under the BSD License
- * http://taskschedulerengine.codeplex.com
+ * https://github.com/pettijohn/TaskSchedulerEngine
  */
 using System;
 using System.Collections.Generic;
@@ -15,7 +15,7 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Executes the task. Execution information is provided.
         /// </summary>
-        void HandleConditionsMetEvent(object sender, ConditionsMetEventArgs e);
+        void Tick(object sender, TickEventArgs e);
         
         /// <summary>
         /// Called after the constructor.
