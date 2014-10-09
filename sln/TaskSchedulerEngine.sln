@@ -12,6 +12,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskSchedulerEngineTests", "..\test\TaskSchedulerEngineTests\TaskSchedulerEngineTests.csproj", "{6DBB8781-5164-4082-8415-07D0E1C040B7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskSchedulerEngineMicro", "..\micro\TaskSchedulerEngineMicro.csproj", "{202DBC0F-6107-4ADD-A410-D63AF4CB8C6A}"
+EndProject
 Global
 	GlobalSection(TestCaseManagementSettings) = postSolution
 		CategoryFile = TaskSchedulerEngine.vsmdi
@@ -46,6 +48,15 @@ Global
 		{6DBB8781-5164-4082-8415-07D0E1C040B7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6DBB8781-5164-4082-8415-07D0E1C040B7}.Release|Any CPU.Build.0 = Release|Any CPU
 		{6DBB8781-5164-4082-8415-07D0E1C040B7}.Release|x86.ActiveCfg = Release|Any CPU
+		{202DBC0F-6107-4ADD-A410-D63AF4CB8C6A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{202DBC0F-6107-4ADD-A410-D63AF4CB8C6A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{202DBC0F-6107-4ADD-A410-D63AF4CB8C6A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{202DBC0F-6107-4ADD-A410-D63AF4CB8C6A}.Deploy|Any CPU.ActiveCfg = Debug|Any CPU
+		{202DBC0F-6107-4ADD-A410-D63AF4CB8C6A}.Deploy|Any CPU.Build.0 = Debug|Any CPU
+		{202DBC0F-6107-4ADD-A410-D63AF4CB8C6A}.Deploy|x86.ActiveCfg = Debug|Any CPU
+		{202DBC0F-6107-4ADD-A410-D63AF4CB8C6A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{202DBC0F-6107-4ADD-A410-D63AF4CB8C6A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{202DBC0F-6107-4ADD-A410-D63AF4CB8C6A}.Release|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

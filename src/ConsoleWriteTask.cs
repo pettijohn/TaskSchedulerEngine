@@ -19,7 +19,7 @@ namespace TaskSchedulerEngine
             Console.WriteLine("{0}: Event intended for {1:o} occured at {2:o}", e.TaskId, e.TimeScheduledUtc, e.TimeSignaledUtc);
         }
 
-        public void Initialize(ScheduleDefinition schedule, object parameters)
+        public void Initialize(BitwiseSchedule schedule, object parameters)
         {
             //Do nothing
         }

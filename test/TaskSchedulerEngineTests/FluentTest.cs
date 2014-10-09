@@ -52,7 +52,7 @@ namespace SchedulerEngineRuntimeTests
                 Ticked = true;
             }
 
-            public void Initialize(ScheduleDefinition schedule, object parameters)
+            public void Initialize(BitwiseSchedule schedule, object parameters)
             {
             }
         }
@@ -68,7 +68,7 @@ namespace SchedulerEngineRuntimeTests
                 Ticked = true;
             }
 
-            public void Initialize(ScheduleDefinition schedule, object parameters)
+            public void Initialize(BitwiseSchedule schedule, object parameters)
             {
             }
         }
@@ -84,7 +84,7 @@ namespace SchedulerEngineRuntimeTests
                 Ticked = true;
             }
 
-            public void Initialize(ScheduleDefinition schedule, object parameters)
+            public void Initialize(BitwiseSchedule schedule, object parameters)
             {
             }
         }

@@ -15,6 +15,6 @@ namespace TaskSchedulerEngine
         public DateTime TimeSignaledUtc { get; set; }
         public DateTime TimeScheduledUtc { get; set; }
         public int TaskId { get; set; }
-        public ScheduleDefinition ScheduleDefinition { get; set; }
+        public BitwiseSchedule ScheduleDefinition { get; set; }
     }
 }

@@ -118,7 +118,7 @@
     <Compile Include="Fluent\Schedule.cs" />
     <Compile Include="ITask.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ScheduleDefinition.cs" />
+    <Compile Include="BitwiseSchedule.cs" />
     <Compile Include="TaskPumpRunState.cs" />
     <Compile Include="SchedulerRuntime.cs" />
     <Compile Include="SerializedAccessProperty.cs" />

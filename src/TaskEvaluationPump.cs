@@ -58,7 +58,7 @@ namespace TaskSchedulerEngine
         /// </summary>
         private static ReaderWriterLockSlim _scheduleLock = new ReaderWriterLockSlim();
 
-        private Dictionary<string, ScheduleDefinition> _schedule { get; set; }
+        private Dictionary<string, BitwiseSchedule> _schedule { get; set; }
 
         /// <summary>
         /// Hang onto the next second to evaluate. Thread-safe.
@@ -82,12 +82,12 @@ namespace TaskSchedulerEngine
         
 
         /// <summary>
-        /// Hooks up the callbacks between a <see cref="ScheduleDefinition"/> and an <see cref="ITask"/>.
+        /// Hooks up the callbacks between a <see cref="BitwiseSchedule"/> and an <see cref="ITask"/>.
         /// </summary>
         /// <param name="schedule"></param>
         /// <param name="taskType"></param>
         /// <param name="parameters"></param>
-        private void WireUpSchedule(ScheduleDefinition schedule, Type taskType, object parameters)
+        private void WireUpSchedule(BitwiseSchedule schedule, Type taskType, object parameters)
         {
             //Create an instance.
             //FIXME - use real dependency injection
@@ -123,7 +123,7 @@ namespace TaskSchedulerEngine
             // Make sure _schedule existed. It'll be null when user start without any schedule
             if (_schedule == null)
             {
-                _schedule = new Dictionary<string, ScheduleDefinition>();
+                _schedule = new Dictionary<string, BitwiseSchedule>();
             }
 
             RunState.Value = TaskPumpRunState.Running;
@@ -202,7 +202,7 @@ namespace TaskSchedulerEngine
             int i = 0;
             
             _scheduleLock.EnterReadLock();
-            foreach (KeyValuePair<string, ScheduleDefinition> scheduleItem in _schedule)
+            foreach (KeyValuePair<string, BitwiseSchedule> scheduleItem in _schedule)
             {
                 i += scheduleItem.Value.Evaluate(secondToEvaluate) ? 1 : 0;
             }
@@ -239,7 +239,7 @@ namespace TaskSchedulerEngine
                 if (friendlySched != null)
                 {
                     //Create an evaluation-friendly schedule from the config-friendly schedule.
-                    ScheduleDefinition schedule = new ScheduleDefinition(friendlySched);
+                    BitwiseSchedule schedule = new BitwiseSchedule(friendlySched);
 
                     //Loop over all of the tasks associated with that schedule.
                     foreach (KeyValuePair<Type, object> task in friendlySched.Tasks)
