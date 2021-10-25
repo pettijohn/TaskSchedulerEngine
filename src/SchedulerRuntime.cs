@@ -1,14 +1,13 @@
 ﻿/* 
  * Task Scheduler Engine
  * Released under the BSD License
- * http://taskschedulerengine.codeplex.com
+ * https://github.com/pettijohn/TaskSchedulerEngine
  */
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using TaskSchedulerEngine.Fluent;
 
 namespace TaskSchedulerEngine
 {
@@ -30,13 +29,6 @@ namespace TaskSchedulerEngine
         {
             TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
             pump.Initialize(schedule);
-            pump.Pump();
-        }
-
-        public static void StartWithConfig(string configSection = "taskSchedulerEngine")
-        {
-            TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
-            pump.InitializeFromConfig(configSection);
             pump.Pump();
         }
 

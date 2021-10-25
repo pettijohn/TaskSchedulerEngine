@@ -1,13 +1,13 @@
 ﻿/* 
  * Task Scheduler Engine
  * Released under the BSD License
- * http://taskschedulerengine.codeplex.com
+ * https://github.com/pettijohn/TaskSchedulerEngine
  */
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using TaskSchedulerEngine.Fluent;
+
 
 namespace TaskSchedulerEngine
 {
@@ -17,18 +17,6 @@ namespace TaskSchedulerEngine
     /// </summary>
     public class ScheduleDefinition
     {
-        public ScheduleDefinition(Configuration.At at)
-        {
-            this.Name = at.Name;
-            this.Month = ParseStringToBitfield(at.Month);
-            this.DayOfMonth = ParseStringToBitfield(at.DayOfMonth);
-            this.DayOfWeek = ParseStringToBitfield(at.DayOfWeek);
-            this.Hour = ParseStringToBitfield(at.Hour);
-            this.Minute = ParseStringToBitfield(at.Minute);
-            this.Second = ParseStringToBitfield(at.Second);
-            this.Kind = at.Kind;
-        }
-
         public ScheduleDefinition(Schedule sched)
         {
             this.Name = sched.Name;
@@ -184,9 +172,10 @@ namespace TaskSchedulerEngine
             if (ConditionsMet != null)
             {
                 EventHandler<ConditionsMetEventArgs> workerDelegate = new EventHandler<ConditionsMetEventArgs>(this.OnConditionsMet);
-                workerDelegate.BeginInvoke(sender, e,
-                    new AsyncCallback(asyncResult => ((EventHandler<ConditionsMetEventArgs>)asyncResult.AsyncState).EndInvoke(asyncResult)),
-                    workerDelegate);
+                var workerTask = System.Threading.Tasks.Task.Run(() => workerDelegate.Invoke(sender, e));
+                // workerDelegate.BeginInvoke(sender, e,
+                //     new AsyncCallback(asyncResult => ((EventHandler<ConditionsMetEventArgs>)asyncResult.AsyncState).EndInvoke(asyncResult)),
+                //     workerDelegate);
             }
         }
 

@@ -1,16 +1,13 @@
 ﻿/* 
  * Task Scheduler Engine
  * Released under the BSD License
- * http://taskschedulerengine.codeplex.com
+ * https://github.com/pettijohn/TaskSchedulerEngine
  */
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using TaskSchedulerEngine.Configuration;
-using System.Configuration;
-using TaskSchedulerEngine.Fluent;
 
 namespace TaskSchedulerEngine
 {
@@ -58,32 +55,6 @@ namespace TaskSchedulerEngine
         /// </summary>
         private TaskEvaluationPump()
         {
-        }
-
-        /// <summary>
-        /// Sets up the schedlue from configuration using the specified section, which must be <see cref="TaskSchedulerEngineConfigurationSection"/>.
-        /// </summary>
-        internal void InitializeFromConfig(string sectionName = "taskSchedulerEngine")
-        {
-            _scheduleLock.EnterWriteLock();
-
-            _schedule = new Dictionary<string, ScheduleDefinition>();
-
-            TaskSchedulerEngineConfigurationSection section = (TaskSchedulerEngineConfigurationSection)ConfigurationManager.GetSection(sectionName);
-
-            //Loop over all of the tasks associated with that schedule.
-            foreach (At at in section.Schedule)
-            {
-                //Create an evaluation-friendly schedule from the config-friendly schedule.
-                ScheduleDefinition schedule = new ScheduleDefinition(at);
-                foreach (var task in at.Execute)
-                {
-                    WireUpSchedule(schedule, Type.GetType(task.Type), task.Parameters);
-                }
-                _schedule.Add(at.Name, schedule);
-            }
-
-            _scheduleLock.ExitWriteLock();
         }
 
         internal void Initialize(IEnumerable<Schedule> fullSchedule)
@@ -158,11 +129,18 @@ namespace TaskSchedulerEngine
 
             Action workerThreadDelegate = this.PumpInternal;
             //Invoke the worker on its own thread. When the thread finishes, call EndInvoke and mark the pump as stopped.
-            workerThreadDelegate.BeginInvoke(new AsyncCallback(asyncResult =>
-                {
-                    ((Action)asyncResult.AsyncState).EndInvoke(asyncResult);
-                    RunState.Value = TaskPumpRunState.Stopped;
-                }), workerThreadDelegate);
+            var pumpTask = System.Threading.Tasks.Task.Run(() => workerThreadDelegate.Invoke());
+            pumpTask.ContinueWith(asyncResult =>
+            {
+                //asyncResult.Wait();
+                //((Action)asyncResult.AsyncState).EndInvoke(asyncResult);
+                RunState.Value = TaskPumpRunState.Stopped;
+            });
+            // workerThreadDelegate.BeginInvoke(new AsyncCallback(asyncResult =>
+            //     {
+            //         ((Action)asyncResult.AsyncState).EndInvoke(asyncResult);
+            //         RunState.Value = TaskPumpRunState.Stopped;
+            //     }), workerThreadDelegate);
         }
 
         public void Stop()
@@ -184,8 +162,9 @@ namespace TaskSchedulerEngine
         /// </summary>
         private void PumpInternal()
         {
+            Console.WriteLine("Pump Internal on Thread " + System.Threading.Thread.CurrentThread.ManagedThreadId);
             //The first time through, we need to set up the initial values.
-            
+
             //Compute the floor of the current second.
             //There are 10,000,000 ticks per second. Subtract the remainder from now.
             DateTime utcNow = DateTime.UtcNow;

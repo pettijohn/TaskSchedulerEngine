@@ -1,7 +1,7 @@
 ﻿/* 
  * Task Scheduler Engine
  * Released under the BSD License
- * http://taskschedulerengine.codeplex.com
+ * https://github.com/pettijohn/TaskSchedulerEngine
  */
 using System;
 using System.Collections.Generic;
