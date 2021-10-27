@@ -15,16 +15,23 @@ namespace TaskSchedulerEngine
     {
         public SerializedAccessProperty()
         {
+            _readerWriterLock = new ReaderWriterLockSlim();
         }
 
-        public SerializedAccessProperty(T initialValue)
+        public SerializedAccessProperty(T initialValue) : this()
         {
             _internal = initialValue;
         }
 
+        ~SerializedAccessProperty()
+        {
+            if (_readerWriterLock != null) 
+                _readerWriterLock.Dispose();
+        }
+
         private T _internal;
-        private ReaderWriterLockSlim readerWriterLock = new ReaderWriterLockSlim();
-        
+        private ReaderWriterLockSlim _readerWriterLock;
+
         /// <summary>
         /// Wraps a variable in a <see cref="ReaderWriterLockSlim"/> so that all access to it is serialized. 
         /// Get obtains a read lock and returns; set obtains a write lock and return.
@@ -33,26 +40,26 @@ namespace TaskSchedulerEngine
         {
             get
             {
-                readerWriterLock.EnterReadLock();
+                _readerWriterLock.EnterReadLock();
                 try
                 {
                     return _internal;
                 }
                 finally
                 {
-                    readerWriterLock.ExitReadLock();
+                    _readerWriterLock.ExitReadLock();
                 }
             }
             set
             {
-                readerWriterLock.EnterWriteLock();
+                _readerWriterLock.EnterWriteLock();
                 try
                 {
                     _internal = value;
                 }
                 finally
                 {
-                    readerWriterLock.ExitWriteLock();
+                    _readerWriterLock.ExitWriteLock();
                 }
             }
         }
