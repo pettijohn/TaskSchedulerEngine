@@ -4,9 +4,9 @@
  * https://github.com/pettijohn/TaskSchedulerEngine
  */
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 
 namespace TaskSchedulerEngine
@@ -44,11 +44,9 @@ namespace TaskSchedulerEngine
         private static TaskEvaluationPump _instance;
 
         /// <summary>
-        /// Used to serialize access to the _schedule.
+        /// All of the schedules, keyed by Name, in a thread-safe Concurrent Dictionary
         /// </summary>
-        private static ReaderWriterLockSlim _scheduleLock = new ReaderWriterLockSlim();
-
-        private Dictionary<string, ScheduleDefinition> _schedule { get; set; }
+        private ConcurrentDictionary<string, ScheduleDefinition> _schedule { get; set; }
 
         /// <summary>
         /// Private constructor. Read from config and create ScheduleDefinitions from At objects, plus wire up delegates.
@@ -59,9 +57,7 @@ namespace TaskSchedulerEngine
 
         internal void Initialize(IEnumerable<Schedule> fullSchedule)
         {
-            _scheduleLock.EnterWriteLock();
-
-            _schedule = new Dictionary<string, ScheduleDefinition>();
+            _schedule = new ConcurrentDictionary<string, ScheduleDefinition>();
 
             foreach (Schedule sched in fullSchedule)
             {
@@ -73,10 +69,8 @@ namespace TaskSchedulerEngine
                 {
                     WireUpSchedule(schedule, task.Key, task.Value);
                 }
-                _schedule.Add(sched.Name, schedule);
+                _schedule[sched.Name] = schedule;
             }
-
-            _scheduleLock.ExitWriteLock();
         }
 
         /// <summary>
@@ -102,17 +96,18 @@ namespace TaskSchedulerEngine
             //And attach it to its schedule.
             schedule.Task = itask;
         }
-        
+
         /// <summary>
         /// Hang onto the next second to evaluate. Thread-safe.
         /// </summary>
-        private SerializedAccessProperty<DateTime> NextSecondToEvaluate = new SerializedAccessProperty<DateTime>();
+        private DateTime _nextSecondToEvaluate = DateTime.Now;
+        private object _lock_nextSecondToEvaluate = new object();
 
         /// <summary>
         /// A flag to determine whether or not the pump is running.
         /// </summary>
-        private SerializedAccessProperty<TaskPumpRunState> RunState = new SerializedAccessProperty<TaskPumpRunState>(TaskPumpRunState.Stopped);
-
+        private TaskPumpRunState _runState = TaskPumpRunState.Stopped;
+        private object _lock_runState = new object();
 
         /// <summary>
         /// Start the evaluation pump on a worker thread.
@@ -122,19 +117,23 @@ namespace TaskSchedulerEngine
             // Make sure _schedule existed. It'll be null when user start without any schedule
             if (_schedule == null)
             {
-                _schedule = new Dictionary<string, ScheduleDefinition>();
+                _schedule = new ConcurrentDictionary<string, ScheduleDefinition>();
             }
 
-            RunState.Value = TaskPumpRunState.Running;
+            lock (_lock_runState)
+            {
+                _runState = TaskPumpRunState.Running;
+            }
 
             Action workerThreadDelegate = this.PumpInternal;
             //Invoke the worker on its own thread. When the thread finishes, call EndInvoke and mark the pump as stopped.
             var pumpTask = System.Threading.Tasks.Task.Run(() => workerThreadDelegate.Invoke());
-            pumpTask.ContinueWith(asyncResult =>
+            pumpTask.ContinueWith(t =>
             {
-                //asyncResult.Wait();
-                //((Action)asyncResult.AsyncState).EndInvoke(asyncResult);
-                RunState.Value = TaskPumpRunState.Stopped;
+                lock (_lock_runState)
+                {
+                    _runState = TaskPumpRunState.Stopped;
+                }
             });
             // workerThreadDelegate.BeginInvoke(new AsyncCallback(asyncResult =>
             //     {
@@ -146,11 +145,19 @@ namespace TaskSchedulerEngine
         public void Stop()
         {
             //Request that it stop running.
-            RunState.Value = TaskPumpRunState.Stopping;
+            lock (_lock_runState)
+            {
+                _runState = TaskPumpRunState.Stopping;
+            }
 
             //Wait for it to stop running.
-            while (RunState.Value != TaskPumpRunState.Stopped)
+            while (true)
             {
+                lock(_lock_runState)
+                {
+                    if (_runState == TaskPumpRunState.Stopped)
+                        break;
+                }
                 Thread.Sleep(10);
             }
         }
@@ -169,17 +176,30 @@ namespace TaskSchedulerEngine
             //There are 10,000,000 ticks per second. Subtract the remainder from now.
             DateTime utcNow = DateTime.UtcNow;
             DateTime utcNowFloor = new DateTime(utcNow.Ticks - (utcNow.Ticks % 10000000));
-        
+
             //Compute the floor of the next second, and save it as the nextSecondToEvaluate
-            NextSecondToEvaluate.Value = utcNowFloor.AddSeconds(1);
+            lock (_lock_nextSecondToEvaluate)
+            {
+                _nextSecondToEvaluate = utcNowFloor.AddSeconds(1);
+            }
 
             //Begin the evaluation pump
-            while (RunState.Value == TaskPumpRunState.Running)
+            while (true)
             {
+                lock(_lock_runState)
+                {
+                    if (_runState != TaskPumpRunState.Running)
+                        break;
+                }
+
+                TimeSpan timeUntilNextEvaluation = TimeSpan.Zero;
                 //Determine how long from now it is until the nextSecondToEvaluate occurs.
                 //In the general case, timeUntilNextEvaluation will be less than one second in the future.
-                utcNow = DateTime.UtcNow;
-                TimeSpan timeUntilNextEvaluation = NextSecondToEvaluate.Value - utcNow;
+                lock (_lock_nextSecondToEvaluate)
+                {
+                    utcNow = DateTime.UtcNow;
+                    timeUntilNextEvaluation = _nextSecondToEvaluate - utcNow;
+                }
 
                 //If the timeUntilNextEvaluation is positive, sleep that long, otherwise evaluate immediately.
                 //This also serves as a preventative step so that we can catch up if we ever drift.
@@ -190,9 +210,12 @@ namespace TaskSchedulerEngine
                 
                 //TODO : use a stopwatch to capture how long the Evaluate method takes and publish a perf counter. "Percent time spent in evaluation."
                 //If it gets close to a second, we're in trouble. 
-                Evaluate(NextSecondToEvaluate.Value);
+                Evaluate(_nextSecondToEvaluate);
 
-                NextSecondToEvaluate.Value = NextSecondToEvaluate.Value.AddSeconds(1);
+                lock (_lock_nextSecondToEvaluate)
+                {
+                    _nextSecondToEvaluate = _nextSecondToEvaluate.AddSeconds(1);
+                }
             }
 
             //Do not signal here that the pump has stopped; that is handled by the Async operation.
@@ -207,12 +230,10 @@ namespace TaskSchedulerEngine
             //TODO : convert secondToEvaluate to a faster format and avoid the extra bit-shifts downstream.
             int i = 0;
             
-            _scheduleLock.EnterReadLock();
             foreach (KeyValuePair<string, ScheduleDefinition> scheduleItem in _schedule)
             {
                 i += scheduleItem.Value.Evaluate(secondToEvaluate) ? 1 : 0;
             }
-            _scheduleLock.ExitReadLock();
 
             return i;
         }
@@ -222,9 +243,7 @@ namespace TaskSchedulerEngine
         /// </summary>
         public IEnumerable<string> ListScheduleName()
         {
-            _scheduleLock.EnterReadLock();
             var names = _schedule.Keys.ToArray();
-            _scheduleLock.ExitReadLock();
 
             return names;
         }
@@ -243,18 +262,7 @@ namespace TaskSchedulerEngine
                     WireUpSchedule(schedule, task.Key, task.Value);
                 }
 
-
-                _scheduleLock.EnterUpgradeableReadLock();
-                if (!_schedule.ContainsKey(schedule.Name))
-                {
-                    _scheduleLock.EnterWriteLock();
-                    if (!_schedule.ContainsKey(schedule.Name))
-                        _schedule.Add(schedule.Name, schedule);
-                    _scheduleLock.ExitWriteLock();
-                    
-                    added = true;
-                }
-                _scheduleLock.ExitUpgradeableReadLock();
+                added = _schedule.TryAdd(schedule.Name, schedule);
             }
 
             return added;
@@ -274,16 +282,13 @@ namespace TaskSchedulerEngine
                     WireUpSchedule(schedule, task.Key, task.Value);
                 }
 
-                _scheduleLock.EnterUpgradeableReadLock();
-                if (_schedule.ContainsKey(schedule.Name))
-                {
-                    _scheduleLock.EnterWriteLock();
-                    if (_schedule.ContainsKey(schedule.Name))
-                        _schedule[schedule.Name] = schedule;
-                    _scheduleLock.ExitWriteLock();
-                    updated = true;
-                }
-                _scheduleLock.ExitUpgradeableReadLock();
+                // If there is a matching schedule name, get it
+                ScheduleDefinition oldValue = null;
+                if(!_schedule.TryGetValue(sched.Name, out oldValue))
+                    return false;
+
+                // And if it is still there with th old value, update it
+                updated = _schedule.TryUpdate(schedule.Name, schedule, oldValue);
             }
 
             return updated;
@@ -299,15 +304,8 @@ namespace TaskSchedulerEngine
                 return false;
 
             var deleted = false;
-            _scheduleLock.EnterUpgradeableReadLock();
-            if (_schedule.ContainsKey(name))
-            {
-                _scheduleLock.EnterWriteLock();
-                if (_schedule.ContainsKey(name))
-                    deleted = _schedule.Remove(name);
-                _scheduleLock.ExitWriteLock();
-            }
-            _scheduleLock.ExitUpgradeableReadLock();
+            ScheduleDefinition removed = null;
+            deleted = _schedule.TryRemove(name, out removed);
             
             return deleted;
         }

@@ -32,7 +32,7 @@ namespace sample
                 .Execute<ConsoleWriter>();
             SchedulerRuntime.Start(s);
             Console.WriteLine("Press any key to quit.");
-            Console.ReadKey(true);
+            var k = Console.Read();
 
             SchedulerRuntime.Stop();
         }

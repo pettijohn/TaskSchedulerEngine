@@ -17,6 +17,7 @@ namespace TaskSchedulerEngine
         public static void Start()
         {
             TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
+            pump.Initialize(new Schedule[0]);
             pump.Pump();
         }
 
