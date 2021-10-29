@@ -15,11 +15,6 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Executes the task. Execution information is provided.
         /// </summary>
-        void HandleConditionsMetEvent(object sender, ConditionsMetEventArgs e);
-        
-        /// <summary>
-        /// Called after the constructor.
-        /// </summary>
-        void Initialize(ScheduleDefinition schedule, object parameters);
+        void OnScheduleRuleMatch(object sender, ScheduleRuleMatchEventArgs e);
     }
 }

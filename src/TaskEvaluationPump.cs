@@ -46,7 +46,7 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// All of the schedules, keyed by Name, in a thread-safe Concurrent Dictionary
         /// </summary>
-        private ConcurrentDictionary<string, ScheduleDefinition> _schedule { get; set; }
+        private ConcurrentDictionary<string, ScheduleEvaluationOptimized> _schedule { get; set; }
 
         /// <summary>
         /// Private constructor. Read from config and create ScheduleDefinitions from At objects, plus wire up delegates.
@@ -57,44 +57,40 @@ namespace TaskSchedulerEngine
 
         internal void Initialize(IEnumerable<Schedule> fullSchedule)
         {
-            _schedule = new ConcurrentDictionary<string, ScheduleDefinition>();
+            _schedule = new ConcurrentDictionary<string, ScheduleEvaluationOptimized>();
 
             foreach (Schedule sched in fullSchedule)
             {
                 //Create an evaluation-friendly schedule from the config-friendly schedule.
-                ScheduleDefinition schedule = new ScheduleDefinition(sched);
+                ScheduleEvaluationOptimized schedule = new ScheduleEvaluationOptimized(sched);
                 
                 //Loop over all of the tasks associated with that schedule.
-                foreach (KeyValuePair<Type, object> task in sched.Tasks)
+                foreach (ITask task in sched.Tasks)
                 {
-                    WireUpSchedule(schedule, task.Key, task.Value);
+                    WireUpSchedule(schedule, task);
                 }
                 _schedule[sched.Name] = schedule;
             }
         }
 
         /// <summary>
-        /// Hooks up the callbacks between a <see cref="ScheduleDefinition"/> and an <see cref="ITask"/>.
+        /// Hooks up the callbacks between a <see cref="ScheduleEvaluationOptimized"/> and an <see cref="ITask"/>.
         /// </summary>
         /// <param name="schedule"></param>
         /// <param name="task"></param>
         /// <param name="parameters"></param>
-        private void WireUpSchedule(ScheduleDefinition schedule, Type task, object parameters)
+        private void WireUpSchedule(ScheduleEvaluationOptimized schedule, ITask taskInstance)
         {
-            //Create an instance.
-            object activated = Activator.CreateInstance(task);
-            ITask itask = activated as ITask;
-            if (itask == null)
+            if (taskInstance == null)
             {
-                throw new ArgumentException("Scheduled Tasks must be of Type ITask.");
+                throw new ArgumentNullException("taskInstance must not be null.");
             }
 
             //Wire up the delegate
-            schedule.ConditionsMet += itask.HandleConditionsMetEvent;
-            //Initialize the task.
-            itask.Initialize(schedule, parameters);
+            schedule.ConditionsMet += taskInstance.OnScheduleRuleMatch;
+
             //And attach it to its schedule.
-            schedule.Task = itask;
+            schedule.Task = taskInstance;
         }
 
         /// <summary>
@@ -117,7 +113,7 @@ namespace TaskSchedulerEngine
             // Make sure _schedule existed. It'll be null when user start without any schedule
             if (_schedule == null)
             {
-                _schedule = new ConcurrentDictionary<string, ScheduleDefinition>();
+                _schedule = new ConcurrentDictionary<string, ScheduleEvaluationOptimized>();
             }
 
             lock (_lock_runState)
@@ -230,7 +226,7 @@ namespace TaskSchedulerEngine
             //TODO : convert secondToEvaluate to a faster format and avoid the extra bit-shifts downstream.
             int i = 0;
             
-            foreach (KeyValuePair<string, ScheduleDefinition> scheduleItem in _schedule)
+            foreach (KeyValuePair<string, ScheduleEvaluationOptimized> scheduleItem in _schedule)
             {
                 i += scheduleItem.Value.Evaluate(secondToEvaluate) ? 1 : 0;
             }
@@ -256,10 +252,10 @@ namespace TaskSchedulerEngine
             var added = false;
             if (sched != null)
             {
-                ScheduleDefinition schedule = new ScheduleDefinition(sched);
-                foreach (KeyValuePair<Type, object> task in sched.Tasks)
+                ScheduleEvaluationOptimized schedule = new ScheduleEvaluationOptimized(sched);
+                foreach (ITask task in sched.Tasks)
                 {
-                    WireUpSchedule(schedule, task.Key, task.Value);
+                    WireUpSchedule(schedule, task);
                 }
 
                 added = _schedule.TryAdd(schedule.Name, schedule);
@@ -276,14 +272,14 @@ namespace TaskSchedulerEngine
             var updated = false;
             if (sched != null)
             {
-                ScheduleDefinition schedule = new ScheduleDefinition(sched);
-                foreach (KeyValuePair<Type, object> task in sched.Tasks)
+                ScheduleEvaluationOptimized schedule = new ScheduleEvaluationOptimized(sched);
+                foreach (ITask task in sched.Tasks)
                 {
-                    WireUpSchedule(schedule, task.Key, task.Value);
+                    WireUpSchedule(schedule, task);
                 }
 
                 // If there is a matching schedule name, get it
-                ScheduleDefinition oldValue = null;
+                ScheduleEvaluationOptimized oldValue = null;
                 if(!_schedule.TryGetValue(sched.Name, out oldValue))
                     return false;
 
@@ -304,7 +300,7 @@ namespace TaskSchedulerEngine
                 return false;
 
             var deleted = false;
-            ScheduleDefinition removed = null;
+            ScheduleEvaluationOptimized removed = null;
             deleted = _schedule.TryRemove(name, out removed);
             
             return deleted;

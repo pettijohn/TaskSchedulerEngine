@@ -134,19 +134,12 @@ namespace TaskSchedulerEngine
             return this;
         }
 
-        public List<KeyValuePair<Type, object>> Tasks { get { return _tasks; } }
-        List<KeyValuePair<Type, object>> _tasks = new List<KeyValuePair<Type, object>>();
-        public Schedule Execute<T>(object parameters) where T : ITask
+        public List<ITask> Tasks { get { return _tasks; } }
+        List<ITask> _tasks = new List<ITask>();
+        public Schedule Execute(ITask taskInstance)
         {
-            var value = new KeyValuePair<Type, object>(
-                typeof(T),
-                parameters);
-            _tasks.Add(value);
+            _tasks.Add(taskInstance);
             return this;
-        }
-        public Schedule Execute<T>() where T : ITask
-        {
-            return Execute<T>(null);
         }
 
     }
