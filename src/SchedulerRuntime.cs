@@ -17,16 +17,16 @@ namespace TaskSchedulerEngine
         public static void Start()
         {
             TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
-            pump.Initialize(new Schedule[0]);
+            pump.Initialize(new ScheduleRule[0]);
             pump.Pump();
         }
 
-        public static void Start(Schedule schedule)
+        public static void Start(ScheduleRule schedule)
         {
-            Start(new Schedule[] { schedule });
+            Start(new ScheduleRule[] { schedule });
         }
 
-        public static void Start(IEnumerable<Schedule> schedule)
+        public static void Start(IEnumerable<ScheduleRule> schedule)
         {
             TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
             pump.Initialize(schedule);
@@ -45,13 +45,13 @@ namespace TaskSchedulerEngine
             return pump.ListScheduleName();
         }
 
-        public static bool AddSchedule(Schedule schedule)
+        public static bool AddSchedule(ScheduleRule schedule)
         {
             TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
             return pump.AddSchedule(schedule);
         }
 
-        public static bool UpdateSchedule(Schedule schedule)
+        public static bool UpdateSchedule(ScheduleRule schedule)
         {
             TaskEvaluationPump pump = TaskEvaluationPump.GetInstance();
             return pump.UpdateSchedule(schedule);

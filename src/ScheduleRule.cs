@@ -12,13 +12,13 @@ using System.Configuration;
 
 namespace TaskSchedulerEngine
 {
-    public class Schedule
+    public class ScheduleRule
     {
-        public Schedule()
+        public ScheduleRule()
         {
         }
 
-        public Schedule(string name)
+        public ScheduleRule(string name)
         {
             _name = name;
         }
@@ -49,7 +49,7 @@ namespace TaskSchedulerEngine
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        public Schedule WithName(string name)
+        public ScheduleRule WithName(string name)
         {
             Name = name;
             return this;
@@ -60,7 +60,7 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// List of months, where 1=Jan, or null for any
         /// </summary>
-        public Schedule AtMonths(params int[] value)
+        public ScheduleRule AtMonths(params int[] value)
         {
             _months = value;
             return this;
@@ -71,7 +71,7 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// 1 to 31
         /// </summary>
-        public Schedule AtDaysOfMonth(params int[] value)
+        public ScheduleRule AtDaysOfMonth(params int[] value)
         {
             _daysOfMonth = value;
             return this;
@@ -84,7 +84,7 @@ namespace TaskSchedulerEngine
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public Schedule AtDaysOfWeek(params int[] value)
+        public ScheduleRule AtDaysOfWeek(params int[] value)
         {
             _daysOfWeek = value;
             return this;
@@ -96,7 +96,7 @@ namespace TaskSchedulerEngine
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public Schedule AtHours(params int[] value)
+        public ScheduleRule AtHours(params int[] value)
         {
             _hours = value;
             return this;
@@ -106,7 +106,7 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// 0 to 59
         /// </summary>
-        public Schedule AtMinutes(params int[] value)
+        public ScheduleRule AtMinutes(params int[] value)
         {
             _minutes = value;
             return this;
@@ -116,19 +116,19 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// 0 to 59
         /// </summary>
-        public Schedule AtSeconds(params int[] value)
+        public ScheduleRule AtSeconds(params int[] value)
         {
             _seconds = value;
             return this;
         }
         public DateTimeKind Kind { get { return _kind; } }
         DateTimeKind _kind = DateTimeKind.Utc;
-        public Schedule WithUtc()
+        public ScheduleRule WithUtc()
         {
             _kind = DateTimeKind.Utc;
             return this;
         }
-        public Schedule WithLocalTime()
+        public ScheduleRule WithLocalTime()
         {
             _kind = DateTimeKind.Local;
             return this;
@@ -136,7 +136,7 @@ namespace TaskSchedulerEngine
 
         public List<ITask> Tasks { get { return _tasks; } }
         List<ITask> _tasks = new List<ITask>();
-        public Schedule Execute(ITask taskInstance)
+        public ScheduleRule Execute(ITask taskInstance)
         {
             _tasks.Add(taskInstance);
             return this;

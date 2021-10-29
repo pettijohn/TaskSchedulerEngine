@@ -17,7 +17,7 @@ namespace TaskSchedulerEngine
     /// </summary>
     public class ScheduleEvaluationOptimized
     {
-        public ScheduleEvaluationOptimized(Schedule sched)
+        public ScheduleEvaluationOptimized(ScheduleRule sched)
         {
             this.Name = sched.Name;
             this.Month = ParseIntArrayToBitfield(sched.Months);

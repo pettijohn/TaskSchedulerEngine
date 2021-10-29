@@ -13,7 +13,7 @@ namespace TaskSchedulerEngine
 {
     /// <summary>
     /// A worker thread wakes up at the start of every second and processes all 
-    /// of the <see cref="Schedule"/> records.
+    /// of the <see cref="ScheduleRule"/> records.
     /// This class is a Singleton.
     /// </summary>
     /// <remarks>
@@ -55,11 +55,11 @@ namespace TaskSchedulerEngine
         {
         }
 
-        internal void Initialize(IEnumerable<Schedule> fullSchedule)
+        internal void Initialize(IEnumerable<ScheduleRule> fullSchedule)
         {
             _schedule = new ConcurrentDictionary<string, ScheduleEvaluationOptimized>();
 
-            foreach (Schedule sched in fullSchedule)
+            foreach (ScheduleRule sched in fullSchedule)
             {
                 //Create an evaluation-friendly schedule from the config-friendly schedule.
                 ScheduleEvaluationOptimized schedule = new ScheduleEvaluationOptimized(sched);
@@ -247,7 +247,7 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Adds a schedule at runtime
         /// </summary>
-        public bool AddSchedule(Schedule sched)
+        public bool AddSchedule(ScheduleRule sched)
         {
             var added = false;
             if (sched != null)
@@ -267,7 +267,7 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Updates the schedule with a matching name.
         /// </summary>
-        public bool UpdateSchedule(Schedule sched)
+        public bool UpdateSchedule(ScheduleRule sched)
         {
             var updated = false;
             if (sched != null)

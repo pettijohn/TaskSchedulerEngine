@@ -21,7 +21,7 @@ namespace sample
         {
             Console.WriteLine("Main on Thread " + System.Threading.Thread.CurrentThread.ManagedThreadId);
 
-            var s = new Schedule()
+            var s = new ScheduleRule()
                 .AtSeconds(0, 10, 20, 30, 40, 50, 60)
                 .WithName("EveryTenSec")
                 .Execute(new ConsoleWriter());
