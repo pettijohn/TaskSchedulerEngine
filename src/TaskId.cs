@@ -16,7 +16,7 @@ namespace TaskSchedulerEngine
     /// </summary>
     internal static class TaskId
     {
-        private static ReaderWriterLockSlim _criticalSectionLock = new ReaderWriterLockSlim();
+        private static object _criticalSectionLock = new object();
         private static int _currentTaskId = 0;
 
         /// <summary>
@@ -25,14 +25,9 @@ namespace TaskSchedulerEngine
         /// <returns></returns>
         public static int PeekCurrent()
         {
-            _criticalSectionLock.EnterReadLock();
-            try
+            lock(_criticalSectionLock)
             {
                 return _currentTaskId;
-            }
-            finally
-            {
-                _criticalSectionLock.ExitReadLock();
             }
         }
 
@@ -42,15 +37,10 @@ namespace TaskSchedulerEngine
         /// <returns></returns>
         public static int Increment()
         {
-            _criticalSectionLock.EnterWriteLock();
-            try
+            lock(_criticalSectionLock);
             {
                 _currentTaskId++;
                 return _currentTaskId;
-            }
-            finally
-            {
-                _criticalSectionLock.ExitWriteLock();
             }
         }
 
