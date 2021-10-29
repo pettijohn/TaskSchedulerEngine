@@ -7,7 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-
+using System.Threading;
 
 namespace TaskSchedulerEngine
 {
@@ -32,6 +32,12 @@ namespace TaskSchedulerEngine
         private const string PARSE_BOUNDS_ERROR = "The only acceptable values for scheduling are from 0 to 63, an empty string, or the character '*'.";
 
         public ITask Task { get; internal set; }
+
+        /// <summary>
+        /// Keep a counter of how many Tasks have executed. Each Task invocation will have a unique sequential ID.
+        /// Only update with System.Threading.Interlocked.Increment(). 
+        /// </summary>
+        private static long TaskID = 0;
 
         /// <summary>
         /// Convert an int[] such as {0,15,47} to a bitfield with the 0th, 15th and 47th bits set to 1.
@@ -139,9 +145,9 @@ namespace TaskSchedulerEngine
                 ScheduleRuleMatchEventArgs e = new ScheduleRuleMatchEventArgs();
                 e.TimeScheduledUtc = inputValueUtc;
                 e.TimeSignaledUtc = DateTime.UtcNow;
-                e.TaskId = TaskId.Increment();
+                e.TaskId = Interlocked.Increment(ref TaskID);
                 e.ScheduleDefinition = this;
-                OnConditionsMetAsync(this, e);
+                OnScheduleRuleMatchAsync(this, e);
             }
 
             return match;
@@ -151,28 +157,30 @@ namespace TaskSchedulerEngine
         /// Occurs when the conditions specified by this ScheduleDefinition have been met; that is to say, 
         /// when NOW is a moment that this Definition is looking for.
         /// </summary>
-        public event EventHandler<ScheduleRuleMatchEventArgs> ConditionsMet;
+        public EventHandler<ScheduleRuleMatchEventArgs>? ConditionsMet = null;
 
         /// <summary>
         /// Raises a ConditionsMet event.
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        protected virtual void OnConditionsMet(object sender, ScheduleRuleMatchEventArgs e)
+        protected virtual void OnScheduleRuleMatch(object sender, ScheduleRuleMatchEventArgs e)
         {
             if (ConditionsMet != null)
                 ConditionsMet(sender, e);
         }
 
         /// <summary>
-        /// Calls OnConditionsMet on its own thread, which then raises the ConditionsMet event for each of the delegates wired up.
+        /// Calls ScheduleRuleMatch on its own thread, which then raises the ConditionsMet event for each of the delegates wired up.
         /// </summary>
-        protected virtual void OnConditionsMetAsync(object sender, ScheduleRuleMatchEventArgs e)
+        protected virtual void OnScheduleRuleMatchAsync(object sender, ScheduleRuleMatchEventArgs e)
         {
             if (ConditionsMet != null)
             {
-                EventHandler<ScheduleRuleMatchEventArgs> workerDelegate = new EventHandler<ScheduleRuleMatchEventArgs>(this.OnConditionsMet);
-                var workerTask = System.Threading.Tasks.Task.Run(() => workerDelegate.Invoke(sender, e));
+                EventHandler<ScheduleRuleMatchEventArgs> workerDelegate = new EventHandler<ScheduleRuleMatchEventArgs>(this.OnScheduleRuleMatch);
+                var workerTask = System.Threading.Tasks.Task.Factory.StartNew(() => workerDelegate(sender, e));
+                
+                // var workerTask = System.Threading.Tasks.Task.Run(() => workerDelegate.Invoke(sender, e));
                 // workerDelegate.BeginInvoke(sender, e,
                 //     new AsyncCallback(asyncResult => ((EventHandler<ConditionsMetEventArgs>)asyncResult.AsyncState).EndInvoke(asyncResult)),
                 //     workerDelegate);

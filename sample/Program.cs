@@ -21,11 +21,23 @@ namespace sample
         {
             Console.WriteLine("Main on Thread " + System.Threading.Thread.CurrentThread.ManagedThreadId);
 
+            // var s = new ScheduleRule()
+            //     .AtSeconds(0, 10, 20, 30, 40, 50, 60)
+            //     .WithName("EveryTenSec")
+            //     .Execute(new ConsoleWriter())
+            //     .Execute(new ConsoleWriteTask());
+            // SchedulerRuntime.Start(s);
+            SchedulerRuntime.Start();
             var s = new ScheduleRule()
                 .AtSeconds(0, 10, 20, 30, 40, 50, 60)
                 .WithName("EveryTenSec")
                 .Execute(new ConsoleWriter());
-            SchedulerRuntime.Start(s);
+            SchedulerRuntime.AddSchedule(s);
+            var s2 = new ScheduleRule()
+                .AtSeconds(0, 10, 20, 30, 40, 50, 60)
+                .WithName("EveryTenSec2")
+                .Execute(new ConsoleWriteTask());
+            SchedulerRuntime.AddSchedule(s2);
             Console.WriteLine("Press CTRL+C to quit.");
 
             // More advanced example here https://stackoverflow.com/questions/177856/how-do-i-trap-ctrl-c-sigint-in-a-c-sharp-console-app

@@ -14,13 +14,8 @@ namespace TaskSchedulerEngine
     /// <summary>
     /// A worker thread wakes up at the start of every second and processes all 
     /// of the <see cref="ScheduleRule"/> records.
-    /// This class is a Singleton.
+    /// This class is a Singleton and is thread safe. 
     /// </summary>
-    /// <remarks>
-    /// A <see cref="ReaderWriterLockSlim"/> is used to serialize access to the underlying _schedule Dictionary.
-    /// This is necessary since evaluating the tasks happens on a background thread, while adding,
-    /// removing and updating can happen on any thread.
-    /// </remarks>
     internal class TaskEvaluationPump
     {
         /// <summary>
@@ -87,7 +82,7 @@ namespace TaskSchedulerEngine
             }
 
             //Wire up the delegate
-            schedule.ConditionsMet += taskInstance.OnScheduleRuleMatch;
+            schedule.ConditionsMet = taskInstance.OnScheduleRuleMatch;
 
             //And attach it to its schedule.
             schedule.Task = taskInstance;
