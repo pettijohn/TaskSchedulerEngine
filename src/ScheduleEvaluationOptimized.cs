@@ -27,11 +27,12 @@ namespace TaskSchedulerEngine
             this.Minute = ParseIntArrayToBitfield(sched.Minutes);
             this.Second = ParseIntArrayToBitfield(sched.Seconds);
             this.Kind = sched.Kind;
+            this.Task = sched.Task;
         }
 
         private const string PARSE_BOUNDS_ERROR = "The only acceptable values for scheduling are from 0 to 63, an empty string, or the character '*'.";
 
-        public ITask Task { get; internal set; }
+        public ITask Task { get; private set; }
 
         /// <summary>
         /// Keep a counter of how many Tasks have executed. Each Task invocation will have a unique sequential ID.
@@ -70,7 +71,7 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Convert a string such as "0,15,47" to an array of integers {0,15,47}
         /// </summary>
-        private static IEnumerable<int> ParseStringToIntArray(string value)
+        public static IEnumerable<int> ParseStringToIntArray(string value)
         {
             //Undefined or wildcard
             if (String.IsNullOrEmpty(value) || value == "*")
@@ -123,7 +124,7 @@ namespace TaskSchedulerEngine
         /// </summary>
         /// <param name="DateTime">In UTC</param>
         /// <returns></returns>
-        public bool Evaluate(DateTime inputValueUtc)
+        public ScheduleRuleMatchEventArgs? Evaluate(DateTime inputValueUtc)
         {
             //TODO : move compareValue into a more compare-friendly object. Peformance-wise, probably not ever necessary. 
 
@@ -147,47 +148,11 @@ namespace TaskSchedulerEngine
                 e.TimeSignaledUtc = DateTime.UtcNow;
                 e.TaskId = Interlocked.Increment(ref TaskID);
                 e.ScheduleDefinition = this;
-                OnScheduleRuleMatchAsync(this, e);
+                return e;
             }
 
-            return match;
+            return null;
         }
-
-        /// <summary>
-        /// Occurs when the conditions specified by this ScheduleDefinition have been met; that is to say, 
-        /// when NOW is a moment that this Definition is looking for.
-        /// </summary>
-        public EventHandler<ScheduleRuleMatchEventArgs>? ConditionsMet = null;
-
-        /// <summary>
-        /// Raises a ConditionsMet event.
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        protected virtual void OnScheduleRuleMatch(object sender, ScheduleRuleMatchEventArgs e)
-        {
-            if (ConditionsMet != null)
-                ConditionsMet(sender, e);
-        }
-
-        /// <summary>
-        /// Calls ScheduleRuleMatch on its own thread, which then raises the ConditionsMet event for each of the delegates wired up.
-        /// </summary>
-        protected virtual void OnScheduleRuleMatchAsync(object sender, ScheduleRuleMatchEventArgs e)
-        {
-            if (ConditionsMet != null)
-            {
-                EventHandler<ScheduleRuleMatchEventArgs> workerDelegate = new EventHandler<ScheduleRuleMatchEventArgs>(this.OnScheduleRuleMatch);
-                var workerTask = System.Threading.Tasks.Task.Factory.StartNew(() => workerDelegate(sender, e));
-                
-                // var workerTask = System.Threading.Tasks.Task.Run(() => workerDelegate.Invoke(sender, e));
-                // workerDelegate.BeginInvoke(sender, e,
-                //     new AsyncCallback(asyncResult => ((EventHandler<ConditionsMetEventArgs>)asyncResult.AsyncState).EndInvoke(asyncResult)),
-                //     workerDelegate);
-            }
-        }
-
-        
 
     }
 }

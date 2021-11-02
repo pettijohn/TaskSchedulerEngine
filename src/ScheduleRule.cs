@@ -121,6 +121,7 @@ namespace TaskSchedulerEngine
             _seconds = value;
             return this;
         }
+        
         public DateTimeKind Kind { get { return _kind; } }
         DateTimeKind _kind = DateTimeKind.Utc;
         public ScheduleRule WithUtc()
@@ -134,11 +135,11 @@ namespace TaskSchedulerEngine
             return this;
         }
 
-        public List<ITask> Tasks { get { return _tasks; } }
-        List<ITask> _tasks = new List<ITask>();
+        public ITask Task { get; set; }
+
         public ScheduleRule Execute(ITask taskInstance)
         {
-            _tasks.Add(taskInstance);
+            Task = taskInstance;
             return this;
         }
 

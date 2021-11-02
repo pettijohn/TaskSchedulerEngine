@@ -29,7 +29,7 @@ namespace sample
             // SchedulerRuntime.Start(s);
             SchedulerRuntime.Start();
             var s = new ScheduleRule()
-                .AtSeconds(0, 10, 20, 30, 40, 50, 60)
+                //.AtSeconds("*")
                 .WithName("EveryTenSec")
                 .Execute(new ConsoleWriter());
             SchedulerRuntime.AddSchedule(s);

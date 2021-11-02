@@ -58,34 +58,7 @@ namespace TaskSchedulerEngine
             {
                 //Create an evaluation-friendly schedule from the config-friendly schedule.
                 ScheduleEvaluationOptimized schedule = new ScheduleEvaluationOptimized(sched);
-                
-                //Loop over all of the tasks associated with that schedule.
-                foreach (ITask task in sched.Tasks)
-                {
-                    WireUpSchedule(schedule, task);
-                }
-                _schedule[sched.Name] = schedule;
             }
-        }
-
-        /// <summary>
-        /// Hooks up the callbacks between a <see cref="ScheduleEvaluationOptimized"/> and an <see cref="ITask"/>.
-        /// </summary>
-        /// <param name="schedule"></param>
-        /// <param name="task"></param>
-        /// <param name="parameters"></param>
-        private void WireUpSchedule(ScheduleEvaluationOptimized schedule, ITask taskInstance)
-        {
-            if (taskInstance == null)
-            {
-                throw new ArgumentNullException("taskInstance must not be null.");
-            }
-
-            //Wire up the delegate
-            schedule.ConditionsMet = taskInstance.OnScheduleRuleMatch;
-
-            //And attach it to its schedule.
-            schedule.Task = taskInstance;
         }
 
         /// <summary>
@@ -223,7 +196,14 @@ namespace TaskSchedulerEngine
             
             foreach (KeyValuePair<string, ScheduleEvaluationOptimized> scheduleItem in _schedule)
             {
-                i += scheduleItem.Value.Evaluate(secondToEvaluate) ? 1 : 0;
+                var eventArgs = scheduleItem.Value.Evaluate(secondToEvaluate);
+                if(eventArgs != null)
+                {
+                    i++;
+                    var workerDelegate = new EventHandler<ScheduleRuleMatchEventArgs>(scheduleItem.Value.Task.OnScheduleRuleMatch);
+                    var workerTask = System.Threading.Tasks.Task.Factory.StartNew(() => workerDelegate(null, eventArgs));
+                    // TODO - keep a ConcurrentBag or running Tasks for graceful shutdown 
+                }
             }
 
             return i;
@@ -248,11 +228,6 @@ namespace TaskSchedulerEngine
             if (sched != null)
             {
                 ScheduleEvaluationOptimized schedule = new ScheduleEvaluationOptimized(sched);
-                foreach (ITask task in sched.Tasks)
-                {
-                    WireUpSchedule(schedule, task);
-                }
-
                 added = _schedule.TryAdd(schedule.Name, schedule);
             }
 
@@ -268,11 +243,8 @@ namespace TaskSchedulerEngine
             if (sched != null)
             {
                 ScheduleEvaluationOptimized schedule = new ScheduleEvaluationOptimized(sched);
-                foreach (ITask task in sched.Tasks)
-                {
-                    WireUpSchedule(schedule, task);
-                }
 
+                throw new NotImplementedException("FIXME - incorrect use of TryUpdate");
                 // If there is a matching schedule name, get it
                 ScheduleEvaluationOptimized oldValue = null;
                 if(!_schedule.TryGetValue(sched.Name, out oldValue))
