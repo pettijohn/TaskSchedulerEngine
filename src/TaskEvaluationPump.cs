@@ -7,7 +7,9 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace TaskSchedulerEngine
 {
@@ -48,6 +50,7 @@ namespace TaskSchedulerEngine
         /// </summary>
         private TaskEvaluationPump()
         {
+            _runningTasks = new ConcurrentDictionary<Task, Task>();
         }
 
         internal void Initialize(IEnumerable<ScheduleRule> fullSchedule)
@@ -89,9 +92,8 @@ namespace TaskSchedulerEngine
                 _runState = TaskPumpRunState.Running;
             }
 
-            Action workerThreadDelegate = this.PumpInternal;
             //Invoke the worker on its own thread. When the thread finishes, call EndInvoke and mark the pump as stopped.
-            var pumpTask = System.Threading.Tasks.Task.Run(() => workerThreadDelegate.Invoke());
+            var pumpTask = System.Threading.Tasks.Task.Run(this.PumpInternal);
             pumpTask.ContinueWith(t =>
             {
                 lock (_lock_runState)
@@ -124,6 +126,8 @@ namespace TaskSchedulerEngine
                 }
                 Thread.Sleep(10);
             }
+            Console.WriteLine("Waiting for {0} Tasks to complete.", _runningTasks.Count);
+            Task.WaitAll(_runningTasks.Keys.ToArray());
         }
 
         /// <summary>
@@ -201,13 +205,21 @@ namespace TaskSchedulerEngine
                 {
                     i++;
                     var workerDelegate = new EventHandler<ScheduleRuleMatchEventArgs>(scheduleItem.Value.Task.OnScheduleRuleMatch);
-                    var workerTask = System.Threading.Tasks.Task.Factory.StartNew(() => workerDelegate(null, eventArgs));
+                    var workerTask = System.Threading.Tasks.Task.Run(() => workerDelegate(null, eventArgs));
+                    _runningTasks[workerTask] = workerTask;
+                    workerTask.ContinueWith(t =>
+                    {
+                        Console.WriteLine("Running task count " + _runningTasks.Count);
+                        _runningTasks.Remove(t, out t);
+                    });
                     // TODO - keep a ConcurrentBag or running Tasks for graceful shutdown 
                 }
             }
 
             return i;
         }
+
+        private ConcurrentDictionary<Task, Task> _runningTasks;
 
         /// <summary>
         /// Gets the names of the running schedules.

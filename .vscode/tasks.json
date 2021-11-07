@@ -11,7 +11,7 @@
                 "build",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary",
-                "./sample/"
+                "TaskSchedulerEngine.sln"
             ],
             "group": {
                 "kind": "build",
