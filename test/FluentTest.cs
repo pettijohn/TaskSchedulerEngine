@@ -14,24 +14,26 @@ namespace SchedulerEngineRuntimeTests
         [TestMethod]
         public void FluentTest1()
         {
+            var host = new ServiceHost();
+            var hostTask = host.RunAsync();
             //Verify output. Should see one or two 10-second ticks, one or two 1,6 ticks, and one or two 2,7 ticks.
             var s = new ScheduleRule()
                 .AtSeconds(0, 10, 20, 30, 40, 50)
                 .WithLocalTime()
                 .Execute(new TenSecTask());
-            SchedulerRuntime.Start(s);
 
             Thread.Sleep(new TimeSpan(0, 0, 2));
 
-            SchedulerRuntime.AddSchedule(new ScheduleRule().WithName("OneSix").AtSeconds(1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56).Execute(new OneSixTask()));
+            host.Pump.AddSchedule(new ScheduleRule().WithName("OneSix").AtSeconds(1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56).Execute(new OneSixTask()));
 
             Thread.Sleep(new TimeSpan(0, 0, 6));
 
-            SchedulerRuntime.UpdateSchedule(new ScheduleRule().WithName("OneSix").AtSeconds(2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57).Execute(new OneSixTask()));
+            host.Pump.UpdateSchedule(new ScheduleRule().WithName("OneSix").AtSeconds(2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57).Execute(new OneSixTask()));
 
             Thread.Sleep(new TimeSpan(0, 0, 6));
 
-            SchedulerRuntime.Stop();
+            host.Pump.RequestStop();
+            hostTask.Wait();
             Console.WriteLine("Stopped");
 
             Assert.IsTrue(TenSecTask.Ticked);

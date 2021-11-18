@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 using TaskSchedulerEngine;
 
 namespace sample
@@ -11,44 +13,30 @@ namespace sample
             Console.WriteLine(String.Format("Event START at {0} on thread {1}", e.TimeScheduledUtc, System.Threading.Thread.CurrentThread.ManagedThreadId));
             // Sleep this thread for 12 seconds - it'll force the next invocation to occur on another thread. 
             System.Threading.Thread.Sleep(12000);
-            Console.WriteLine(String.Format("Event STOP  at {0} on thread {1}", e.TimeScheduledUtc, System.Threading.Thread.CurrentThread.ManagedThreadId));
+            Console.WriteLine(String.Format("Event STOP at {0} on thread {1}", e.TimeScheduledUtc, System.Threading.Thread.CurrentThread.ManagedThreadId));
         }
     }
 
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             Console.WriteLine("Main on Thread " + System.Threading.Thread.CurrentThread.ManagedThreadId);
 
-            // var s = new ScheduleRule()
-            //     .AtSeconds(0, 10, 20, 30, 40, 50, 60)
-            //     .WithName("EveryTenSec")
-            //     .Execute(new ConsoleWriter())
-            //     .Execute(new ConsoleWriteTask());
-            // SchedulerRuntime.Start(s);
-            SchedulerRuntime.Start();
+            var host = new ServiceHost();
             var s = new ScheduleRule()
-                //.AtSeconds("*")
-                .WithName("EveryTenSec")
+                .WithName("EverySecond")
                 .Execute(new ConsoleWriter());
-            SchedulerRuntime.AddSchedule(s);
+            host.Pump.AddSchedule(s);
             var s2 = new ScheduleRule()
                 .AtSeconds(0, 10, 20, 30, 40, 50, 60)
-                .WithName("EveryTenSec2")
+                .WithName("EveryTenSec")
                 .Execute(new ConsoleWriteTask());
-            SchedulerRuntime.AddSchedule(s2);
+            host.Pump.AddSchedule(s2);
             Console.WriteLine("Press CTRL+C to quit.");
 
-            // More advanced example here https://stackoverflow.com/questions/177856/how-do-i-trap-ctrl-c-sigint-in-a-c-sharp-console-app
-            Console.CancelKeyPress += delegate
-            {
-                Console.WriteLine("CTRL+C detected, stopping.");
-                SchedulerRuntime.Stop();
-                return;
-            };
-
-            while (true) { }
+            var hostTask = host.RunAsync();
+            await hostTask;
         }
     }
 }
