@@ -15,11 +15,11 @@ Schedule Rule evaluation is itself lightweight with bitwise evaluation of "now" 
 * Create a ServiceHost, await RunAsync, and you are guaranteed graceful shutdown.
 * The ServiceHost is a helper that owns a TaskEvaluationRuntime. If you want to own the lifecycle, you may instantiate TaskEvaluationRuntimed directly.
 * TaskEvaluationRuntime has four states: 
- * Stopped: nothing happening, can Start back into a running state.
- * Running: evaluating every second
- * StopRequested: instructs the every-second evaluation loop to quit
- * StoppingGracefully: waiting for executing tasks to complete
- * Back to Stopped.
+  * Stopped: nothing happening, can Start back into a running state.
+  * Running: evaluating every second
+  * StopRequested: instructs the every-second evaluation loop to quit
+  * StoppingGracefully: waiting for executing tasks to complete
+  * Back to Stopped.
 * RunAsync creates a background thread to evaluate rules. RequestStop requests the background thread to stop. Control is then handed back to RunAsync which waits for all running tasks to complete. Then control is returned from RunAsync to the awaiting caller. 
 
 ## A note on the 2010 vs 2021 versions
