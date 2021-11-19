@@ -41,13 +41,19 @@ This should be considered a *new* library that happens to share a name and some 
 - [x] Remove TaskID (?) or replace it with Interlocked.Increment()~
 - [x] Keep track of running tasks so they can gracefully shut down
 - [x] Use Interlocked.Exchange to set running state of Pump - no, can't use with Enum without boxing/unboxing code, lock() is cleaner
-- [ ] Use async/await pattern
-- [ ] Use strict mode to catch nulls 
-- [ ] Create "service host" that blocks and handles HUP/Kill/Restart events https://github.com/dotnet/runtime/issues/15178#issue-comment-box
+- [x] Use async/await pattern
 - [x] Remove singleton & scheduleRuntime 
 - [x] Fix bug where you call AddSchedule() before Start() and it throws null ref 
+- [ ] Task exception handling  https://stackoverflow.com/questions/32067034/how-to-handle-task-run-exception/32067091
+- [ ] Use strict mode to catch nulls 
+- [ ] Create "service host" that blocks and handles HUP/Kill/Restart events 
+      - https://github.com/dotnet/runtime/issues/15178#issue-comment-box
+      - https://docs.microsoft.com/en-us/dotnet/api/system.appdomain.processexit?view=net-6.0 
 - [ ] Use built-in Task class instead of ITask (?)
-- [ ] Set up unit tests
+- [ ] Improve unit tests
+- [ ] Use proper logging with a Console sink 
+- [x] Improve the pump loop to abort quickly rather than waiting 1s https://stackoverflow.com/questions/3460280/is-there-a-way-to-wake-a-sleeping-thread 
+- [x] Task should be cancellable on shutdown 
 
 - [ ] Use var in all definitions 
 - [ ] Add year to support single execution

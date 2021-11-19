@@ -8,7 +8,7 @@ namespace sample
 {
     public class ConsoleWriter : ITask
     {
-        public void OnScheduleRuleMatch(object sender, ScheduleRuleMatchEventArgs e)
+        public void OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken _)
         {
             Console.WriteLine(String.Format("Event START at {0} on thread {1}", e.TimeScheduledUtc, System.Threading.Thread.CurrentThread.ManagedThreadId));
             // Sleep this thread for 12 seconds - it'll force the next invocation to occur on another thread. 
@@ -27,15 +27,15 @@ namespace sample
             var s = new ScheduleRule()
                 .WithName("EverySecond")
                 .Execute(new ConsoleWriter());
-            host.Pump.AddSchedule(s);
+            host.Runtime.AddSchedule(s);
             var s2 = new ScheduleRule()
                 .AtSeconds(0, 10, 20, 30, 40, 50, 60)
                 .WithName("EveryTenSec")
                 .Execute(new ConsoleWriteTask());
-            host.Pump.AddSchedule(s2);
+            host.Runtime.AddSchedule(s2);
             Console.WriteLine("Press CTRL+C to quit.");
 
-            var hostTask = host.RunAsync();
+            var hostTask = host.Runtime.RunAsync();
             await hostTask;
         }
     }

@@ -19,15 +19,15 @@ namespace TaskSchedulerEngine
     {
         /// <summary>
         /// One line startup that listens to CTRL+C 
-        /// and TODO service events like HUP/KILL
+        /// and AppDomain.ProcessExit. 
         /// </summary>
-        public ServiceHost() 
+        public ServiceHost(TaskEvaluationRuntime runtime) 
         {
-            Pump = new TaskEvaluationRuntime();
-            Console.CancelKeyPress += delegate (object sender, ConsoleCancelEventArgs args)
+            Runtime = runtime;
+            Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs args) =>
             {
                 // see also https://stackoverflow.com/questions/177856/how-do-i-trap-ctrl-c-sigint-in-a-c-sharp-console-app
-                var stopSuccess = Pump.RequestStop();
+                var stopSuccess = Runtime.RequestStop();
                 args.Cancel = stopSuccess;
                 if (stopSuccess)
                 {
@@ -39,14 +39,14 @@ namespace TaskSchedulerEngine
                     Console.WriteLine("Aborting immediately.");
                 }
             };
+            AppDomain.CurrentDomain.ProcessExit += (object sender, EventArgs e) => Runtime.RequestStop();
         }
 
-        public TaskEvaluationRuntime Pump { get; private set; }
-
-        public async Task RunAsync()
+        public ServiceHost() : this(new TaskEvaluationRuntime())
         {
-            await Pump.RunAsync();
         }
+
+        public TaskEvaluationRuntime Runtime { get; private set; }
     }
 
 

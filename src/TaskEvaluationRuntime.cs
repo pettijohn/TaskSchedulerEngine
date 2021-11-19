@@ -21,11 +21,6 @@ namespace TaskSchedulerEngine
     public class TaskEvaluationRuntime
     {
         /// <summary>
-        /// All of the schedules, keyed by Name, in a thread-safe Concurrent Dictionary
-        /// </summary>
-        private ConcurrentDictionary<string, ScheduleEvaluationOptimized> _schedule { get; set; }
-
-        /// <summary>
         /// Private constructor. Read from config and create ScheduleDefinitions from At objects, plus wire up delegates.
         /// </summary>
         public TaskEvaluationRuntime()
@@ -33,6 +28,16 @@ namespace TaskSchedulerEngine
             _runningTasks = new ConcurrentDictionary<Task, Task>();
             _schedule = new ConcurrentDictionary<string, ScheduleEvaluationOptimized>();
         }
+
+        /// <summary>
+        /// All of the schedules, keyed by Name, in a thread-safe Concurrent Dictionary
+        /// </summary>
+        private ConcurrentDictionary<string, ScheduleEvaluationOptimized> _schedule { get; set; }
+
+        /// <summary>
+        /// All currently running tasks. 
+        /// </summary>
+        private ConcurrentDictionary<Task, Task> _runningTasks;
 
         /// <summary>
         /// Hang onto the next second to evaluate. Thread-safe.
@@ -45,6 +50,10 @@ namespace TaskSchedulerEngine
         /// </summary>
         private TaskEvaluationRuntimeState _runState = TaskEvaluationRuntimeState.Stopped;
         private object _lock_runState = new object();
+
+        public Action<Exception> HandleTaskException = (Exception e) => { Console.WriteLine(e); };
+
+        private CancellationTokenSource? _evaluationLoopCancellationToken;
 
         /// <summary>
         /// Start the evaluation pump on a worker thread, waits for the thread to stop, then gracefully shuts down.
@@ -60,7 +69,7 @@ namespace TaskSchedulerEngine
             }
 
             //Invoke the worker on its own thread.
-            var pumpTask = System.Threading.Tasks.Task.Run(this.PumpInternal);
+            var pumpTask = System.Threading.Tasks.Task.Run(this.EvaluationLoop);
             // Yield control and wait for PumpInteral's thread to end, signaled by RequestStop()
             await pumpTask;
 
@@ -93,17 +102,19 @@ namespace TaskSchedulerEngine
                     return false;
 
                 _runState = TaskEvaluationRuntimeState.StopRequested;
+                if(_evaluationLoopCancellationToken != null)
+                    _evaluationLoopCancellationToken.Cancel();
                 return true;
             }
         }
 
 
         /// <summary>
-        /// The actual evaluation pump. Determine the next second that will occur and how long until it occurs.
+        /// The actual evaluation loop. Determine the next second that will occur and how long until it occurs.
         /// Sleep that long and evaluate the target evaluation second. Add one second to the target evaluation second,
         /// sleep until that second occurs, and repeat evaluation. 
         /// </summary>
-        private void PumpInternal()
+        private async Task EvaluationLoop()
         {
             Console.WriteLine("Pump Internal on Thread " + System.Threading.Thread.CurrentThread.ManagedThreadId);
             //The first time through, we need to set up the initial values.
@@ -119,47 +130,60 @@ namespace TaskSchedulerEngine
                 _nextSecondToEvaluate = utcNowFloor.AddSeconds(1);
             }
 
-            //Begin the evaluation pump
-            while (true)
+            //Set up a cancellation token for the main loop
+            using (_evaluationLoopCancellationToken = new CancellationTokenSource())
             {
-                lock(_lock_runState)
+                //Begin the evaluation pump
+                while (!_evaluationLoopCancellationToken.IsCancellationRequested)
                 {
-                    if (_runState != TaskEvaluationRuntimeState.Running)
+                    lock (_lock_runState)
                     {
-                        Console.WriteLine("Pump internal loop stopping");
-                        break;
+                        if (_runState != TaskEvaluationRuntimeState.Running)
+                        {
+                            break;
+                        }
                     }
-                }
 
-                TimeSpan timeUntilNextEvaluation = TimeSpan.Zero;
-                //Determine how long from now it is until the nextSecondToEvaluate occurs.
-                //In the general case, timeUntilNextEvaluation will be less than one second in the future.
-                lock (_lock_nextSecondToEvaluate)
-                {
-                    utcNow = DateTime.UtcNow;
-                    timeUntilNextEvaluation = _nextSecondToEvaluate - utcNow;
-                }
+                    TimeSpan timeUntilNextEvaluation = TimeSpan.Zero;
+                    //Determine how long from now it is until the nextSecondToEvaluate occurs.
+                    //In the general case, timeUntilNextEvaluation will be less than one second in the future.
+                    lock (_lock_nextSecondToEvaluate)
+                    {
+                        utcNow = DateTime.UtcNow;
+                        timeUntilNextEvaluation = _nextSecondToEvaluate - utcNow;
+                    }
 
-                //If the timeUntilNextEvaluation is positive, sleep that long, otherwise evaluate immediately.
-                //This also serves as a preventative step so that we can catch up if we ever drift.
-                if (timeUntilNextEvaluation > TimeSpan.Zero)
-                {
-                    Thread.Sleep(timeUntilNextEvaluation);
-                }
-                
-                //TODO : use a stopwatch to capture how long the Evaluate method takes and publish a perf counter. "Percent time spent in evaluation."
-                //If it gets close to a second, we're in trouble. 
-                Evaluate(_nextSecondToEvaluate);
+                    //If the timeUntilNextEvaluation is positive, sleep that long, otherwise evaluate immediately.
+                    //This also serves as a preventative step so that we can catch up if we ever drift.
+                    if (timeUntilNextEvaluation > TimeSpan.Zero)
+                    {
+                        // Can I await Thread.Delay with cancellation token, and cancel immediately when StopRequest? 
+                        // https://docs.microsoft.com/en-us/dotnet/api/system.threading.tasks.task.delay?view=net-6.0#System_Threading_Tasks_Task_Delay_System_Int32_System_Threading_CancellationToken_
+                        try
+                        {
+                            await Task.Delay(timeUntilNextEvaluation, _evaluationLoopCancellationToken.Token);
+                        }
+                        catch (OperationCanceledException _)
+                        {
+                            break;
+                        }
+                        //Thread.Sleep(timeUntilNextEvaluation);
+                    }
 
-                lock (_lock_nextSecondToEvaluate)
-                {
-                    _nextSecondToEvaluate = _nextSecondToEvaluate.AddSeconds(1);
+                    //TODO : use a stopwatch to capture how long the Evaluate method takes and publish a perf counter. "Percent time spent in evaluation."
+                    //If it gets close to a second, we're in trouble. 
+                    Evaluate(_nextSecondToEvaluate);
+
+                    lock (_lock_nextSecondToEvaluate)
+                    {
+                        _nextSecondToEvaluate = _nextSecondToEvaluate.AddSeconds(1);
+                    }
                 }
             }
         }
 
         /// <summary>
-        /// Evaluate all of the rules in the schedule and see if they match the specified second.
+        /// Evaluate all of the rules in the schedule and see if they match the specified second. If it matches, spin it off on a new thread. 
         /// </summary>
         /// <returns>The number of schedules that evaluated to TRUE, that is, their conditions were met by this moment in time.</returns>
         private int Evaluate(DateTime secondToEvaluate)
@@ -173,8 +197,7 @@ namespace TaskSchedulerEngine
                 if(eventArgs != null)
                 {
                     i++;
-                    var workerDelegate = new EventHandler<ScheduleRuleMatchEventArgs>(scheduleItem.Value.Task.OnScheduleRuleMatch);
-                    var workerTask = System.Threading.Tasks.Task.Run(() => workerDelegate(null, eventArgs));
+                    var workerTask = System.Threading.Tasks.Task.Run(() => scheduleItem.Value.Task.OnScheduleRuleMatch(eventArgs, _evaluationLoopCancellationToken.Token));
                     // TODO - exception handling of Task threads 
                     // Keep a ConcurrentDict of running Tasks for graceful shutdown 
                     _runningTasks[workerTask] = workerTask;
@@ -188,8 +211,6 @@ namespace TaskSchedulerEngine
 
             return i;
         }
-
-        private ConcurrentDictionary<Task, Task> _runningTasks;
 
         /// <summary>
         /// Gets the names of the running schedules.
@@ -217,26 +238,15 @@ namespace TaskSchedulerEngine
         }
 
         /// <summary>
-        /// Updates the schedule with a matching name.
+        /// Unconditionally update (or add) the schedule with a matching name.
         /// </summary>
-        public bool UpdateSchedule(ScheduleRule sched)
+        public void UpdateSchedule(ScheduleRule sched)
         {
-            var updated = false;
             if (sched != null)
             {
                 ScheduleEvaluationOptimized schedule = new ScheduleEvaluationOptimized(sched);
-
-                throw new NotImplementedException("FIXME - incorrect use of TryUpdate");
-                // If there is a matching schedule name, get it
-                ScheduleEvaluationOptimized oldValue = null;
-                if(!_schedule.TryGetValue(sched.Name, out oldValue))
-                    return false;
-
-                // And if it is still there with th old value, update it
-                updated = _schedule.TryUpdate(schedule.Name, schedule, oldValue);
+                _schedule[schedule.Name] = schedule;
             }
-
-            return updated;
         }
 
         /// <summary>

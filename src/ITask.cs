@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace TaskSchedulerEngine
 {
@@ -15,6 +16,6 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Executes the task. Execution information is provided.
         /// </summary>
-        void OnScheduleRuleMatch(object sender, ScheduleRuleMatchEventArgs e);
+        void OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken c);
     }
 }
