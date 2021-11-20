@@ -41,7 +41,7 @@ namespace SchedulerEngineRuntimeTests
             Assert.IsTrue(TwoSevenTask.Ticked);
         }
 
-        class TenSecTask : ITask
+        class TenSecTask : IScheduledTask
         {
             public static bool Ticked = false;
             public void OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken _)
@@ -54,7 +54,7 @@ namespace SchedulerEngineRuntimeTests
 
         }
 
-        class OneSixTask : ITask
+        class OneSixTask : IScheduledTask
         {
             public static bool Ticked = false;
             public void OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken _)
@@ -66,7 +66,7 @@ namespace SchedulerEngineRuntimeTests
             }
         }
 
-        class TwoSevenTask : ITask
+        class TwoSevenTask : IScheduledTask
         {
             public static bool Ticked = false;
             public void OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken _)

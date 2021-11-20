@@ -32,7 +32,7 @@ namespace TaskSchedulerEngine
 
         private const string PARSE_BOUNDS_ERROR = "The only acceptable values for scheduling are from 0 to 63, an empty string, or the character '*'.";
 
-        public ITask Task { get; private set; }
+        public IScheduledTask Task { get; private set; }
 
         /// <summary>
         /// Keep a counter of how many Tasks have executed. Each Task invocation will have a unique sequential ID.

@@ -16,5 +16,6 @@ namespace TaskSchedulerEngine
         public DateTime TimeScheduledUtc { get; set; }
         public long TaskId { get; set; }
         public ScheduleEvaluationOptimized ScheduleDefinition { get; set; }
+        public TaskEvaluationRuntime Runtime { get; set; }
     }
 }

@@ -9,6 +9,8 @@ using System.Linq;
 using System.Text;
 using System.Reflection;
 using System.Configuration;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace TaskSchedulerEngine
 {
@@ -135,9 +137,15 @@ namespace TaskSchedulerEngine
             return this;
         }
 
-        public ITask Task { get; set; }
+        public IScheduledTask Task { get; set; }
 
-        public ScheduleRule Execute(ITask taskInstance)
+        public ScheduleRule Execute(Action<ScheduleRuleMatchEventArgs, CancellationToken> callback)
+        {
+            Task = new AnonymousScheduledTask(callback);
+            return this;
+        }
+
+        public ScheduleRule Execute(IScheduledTask taskInstance)
         {
             Task = taskInstance;
             return this;

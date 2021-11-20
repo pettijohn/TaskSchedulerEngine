@@ -1,20 +1,50 @@
 # TaskSchedulerEngine
 
-A lightweight (zero dependencies, 500 lines of code) cron-like scheduler for in-memory scheduling of your code with second-level precision. Implement ITask, define a ScheduleRule, and Start the runtime. 
+A lightweight (zero dependencies, ~400 lines of code) cron-like scheduler for in-memory scheduling of your code with second-level precision. Implement IScheduledTask or provide a callback, define a ScheduleRule, and Start the runtime. 
 Schedule Rule evaluation is itself lightweight with bitwise evaluation of "now" against the rules. Targets .NET Core 3.1, .NET 5, and .NET 6. 
+
+## Quick Start
+
+See `sample/` in source tree for more detailed examples.
+
+```C#
+static async Task Main(string[] args)
+{
+  // Service Host is a helper to listen to AppDomain.ProcessExit and CTRL+C.
+  // You may also instantiate TaskEvaluationRuntime directly.
+  var host = new ServiceHost();
+
+  // Use the fluent API to define a schedule rule.
+  // Execute() accepts an IScheduledTask or Action<ScheduleRuleMatchEventArgs, CancellationToken>
+  var s = new ScheduleRule()
+    .WithName("EverySecond")
+    .Execute((e, token) => {
+      if(!token.IsCancellationRequested)
+        Console.WriteLine("{0}: Event intended for {1:o} occured at {2:o}", e.TaskId, e.TimeScheduledUtc, e.TimeSignaledUtc);
+    });
+
+  // Add that schedule to the runtime.
+  host.Runtime.AddSchedule(s);
+  
+  Console.WriteLine("Press CTRL+C to quit.");
+
+  // Await the runtime.
+  await host.Runtime.RunAsync();
+}
+```
 
 ## Terminology
 
 * Schedule Rule - cron-like rule, with second-level precision. Leave a parameter unset to treate it as "*", otherwise set an int array for when you want to execute. 
-* Task - the thing to execute when schedule matches. The instance is shared by all executions forever and should be thread safe (unless you're completely sure there will only ever be at most one invocation). If you need an instance per execution, make Task.OnScheduleRuleMatch a factory pattern.
-* Schedule Rule Match - the current second ("Now") matches a Schedule Rule so the Task should execute. A single Schedule Rule can only execute one Task. If you need to execute multiple tasks sequentially, initiate them from your Task. Multiple Schedule Rules that fire at the same time will execute in parallel (order not guaranteed).
+* Scheduled Task - the thing to execute when schedule matches. The instance is shared by all executions forever and should be thread safe (unless you're completely sure there will only ever be at most one invocation). If you need an instance per execution, make ScheduledTask.OnScheduleRuleMatch a factory pattern.
+* Schedule Rule Match - the current second ("Now") matches a Schedule Rule so the Scheduled Task should execute. A single ScheduleRule can only execute one ScheduledTask. If you need to execute multiple tasks sequentially, initiate them from your Task. Multiple Schedule Rules that fire at the same time will execute in parallel (order not guaranteed).
 * Task Evaluation Runtime - the thing that evaluates the rules each second. Evaluation runs on its own thread and spawns Tasks on their own threads.
 
 ## Runtime Lifecycle
 
 * Create a ServiceHost, await RunAsync, and you are guaranteed graceful shutdown.
 * The ServiceHost is a helper that owns a TaskEvaluationRuntime. If you want to own the lifecycle, you may instantiate TaskEvaluationRuntimed directly.
-* TaskEvaluationRuntime has four states: 
+* TaskEvaluationRuntime moves through four states: 
   * Stopped: nothing happening, can Start back into a running state.
   * Running: evaluating every second
   * StopRequested: instructs the every-second evaluation loop to quit
@@ -44,12 +74,13 @@ This should be considered a *new* library that happens to share a name and some 
 - [x] Use async/await pattern
 - [x] Remove singleton & scheduleRuntime 
 - [x] Fix bug where you call AddSchedule() before Start() and it throws null ref 
-- [ ] Task exception handling  https://stackoverflow.com/questions/32067034/how-to-handle-task-run-exception/32067091
-- [ ] Use strict mode to catch nulls 
-- [ ] Create "service host" that blocks and handles HUP/Kill/Restart events 
+- [#] Allow ScheduleRule.Execute to accept an Action<ScheduleRuleMatchEventArgs, CancellationToken>
+- [x] Create "service host" that blocks and handles HUP/Kill/Restart events 
       - https://github.com/dotnet/runtime/issues/15178#issue-comment-box
       - https://docs.microsoft.com/en-us/dotnet/api/system.appdomain.processexit?view=net-6.0 
-- [ ] Use built-in Task class instead of ITask (?)
+- [ ] Task exception handling  https://stackoverflow.com/questions/32067034/how-to-handle-task-run-exception/32067091
+- [ ] Can a task unschedule itself? 
+- [ ] Use strict mode to catch nulls 
 - [ ] Improve unit tests
 - [ ] Use proper logging with a Console sink 
 - [x] Improve the pump loop to abort quickly rather than waiting 1s https://stackoverflow.com/questions/3460280/is-there-a-way-to-wake-a-sleeping-thread 

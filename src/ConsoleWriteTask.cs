@@ -11,7 +11,7 @@ using System.Threading;
 
 namespace TaskSchedulerEngine
 {
-    public class ConsoleWriteTask : ITask
+    public class ConsoleWriteTask : IScheduledTask
     {
         public void OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken _)
         {

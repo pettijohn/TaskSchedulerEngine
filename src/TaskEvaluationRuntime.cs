@@ -163,7 +163,7 @@ namespace TaskSchedulerEngine
                         {
                             await Task.Delay(timeUntilNextEvaluation, _evaluationLoopCancellationToken.Token);
                         }
-                        catch (OperationCanceledException _)
+                        catch (OperationCanceledException)
                         {
                             break;
                         }
@@ -197,6 +197,7 @@ namespace TaskSchedulerEngine
                 if(eventArgs != null)
                 {
                     i++;
+                    eventArgs.Runtime = this;
                     var workerTask = System.Threading.Tasks.Task.Run(() => scheduleItem.Value.Task.OnScheduleRuleMatch(eventArgs, _evaluationLoopCancellationToken.Token));
                     // TODO - exception handling of Task threads 
                     // Keep a ConcurrentDict of running Tasks for graceful shutdown 

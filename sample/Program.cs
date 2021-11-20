@@ -6,7 +6,7 @@ using TaskSchedulerEngine;
 
 namespace sample
 {
-    public class ConsoleWriter : ITask
+    public class ConsoleWriter : IScheduledTask
     {
         public void OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken _)
         {
@@ -31,7 +31,11 @@ namespace sample
             var s2 = new ScheduleRule()
                 .AtSeconds(0, 10, 20, 30, 40, 50, 60)
                 .WithName("EveryTenSec")
-                .Execute(new ConsoleWriteTask());
+                //.Execute(new ConsoleWriteTask());
+                .Execute((e, token) => {
+                if(!token.IsCancellationRequested)
+                    Console.WriteLine("{0}: Event intended for {1:o} occured at {2:o}", e.TaskId, e.TimeScheduledUtc, e.TimeSignaledUtc);
+                });
             host.Runtime.AddSchedule(s2);
             Console.WriteLine("Press CTRL+C to quit.");
 
