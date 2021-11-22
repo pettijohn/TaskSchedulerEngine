@@ -19,6 +19,7 @@ namespace TaskSchedulerEngine
     {
         public ScheduleEvaluationOptimized(ScheduleRule sched)
         {
+            this._originalSchedule = sched;
             this.Name = sched.Name;
             this.Month = ParseIntArrayToBitfield(sched.Months);
             this.DayOfMonth = ParseIntArrayToBitfield(sched.DaysOfMonth);
@@ -29,6 +30,8 @@ namespace TaskSchedulerEngine
             this.Kind = sched.Kind;
             this.Task = sched.Task;
         }
+
+        private ScheduleRule _originalSchedule;
 
         private const string PARSE_BOUNDS_ERROR = "The only acceptable values for scheduling are from 0 to 63, an empty string, or the character '*'.";
 
@@ -147,7 +150,7 @@ namespace TaskSchedulerEngine
                 e.TimeScheduledUtc = inputValueUtc;
                 e.TimeSignaledUtc = DateTime.UtcNow;
                 e.TaskId = Interlocked.Increment(ref TaskID);
-                e.ScheduleDefinition = this;
+                e.ScheduleRule = this._originalSchedule;
                 return e;
             }
 

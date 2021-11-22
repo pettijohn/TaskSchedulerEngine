@@ -26,13 +26,13 @@ namespace TaskSchedulerEngine
         public TaskEvaluationRuntime()
         {
             _runningTasks = new ConcurrentDictionary<Task, Task>();
-            _schedule = new ConcurrentDictionary<string, ScheduleEvaluationOptimized>();
+            _schedule = new ConcurrentDictionary<ScheduleRule, ScheduleEvaluationOptimized>();
         }
 
         /// <summary>
-        /// All of the schedules, keyed by Name, in a thread-safe Concurrent Dictionary
+        /// All of the schedules, keyed by ScheduleRule, in a thread-safe Concurrent Dictionary
         /// </summary>
-        private ConcurrentDictionary<string, ScheduleEvaluationOptimized> _schedule { get; set; }
+        private ConcurrentDictionary<ScheduleRule, ScheduleEvaluationOptimized> _schedule { get; set; }
 
         /// <summary>
         /// All currently running tasks. 
@@ -191,7 +191,7 @@ namespace TaskSchedulerEngine
             //TODO : convert secondToEvaluate to a faster format and avoid the extra bit-shifts downstream.
             int i = 0;
             
-            foreach (KeyValuePair<string, ScheduleEvaluationOptimized> scheduleItem in _schedule)
+            foreach (KeyValuePair<ScheduleRule, ScheduleEvaluationOptimized> scheduleItem in _schedule)
             {
                 var eventArgs = scheduleItem.Value.Evaluate(secondToEvaluate);
                 if(eventArgs != null)
@@ -214,16 +214,6 @@ namespace TaskSchedulerEngine
         }
 
         /// <summary>
-        /// Gets the names of the running schedules.
-        /// </summary>
-        public IEnumerable<string> ListScheduleName()
-        {
-            var names = _schedule.Keys.ToArray();
-
-            return names;
-        }
-
-        /// <summary>
         /// Adds a schedule at runtime
         /// </summary>
         public bool AddSchedule(ScheduleRule sched)
@@ -232,7 +222,7 @@ namespace TaskSchedulerEngine
             if (sched != null)
             {
                 ScheduleEvaluationOptimized schedule = new ScheduleEvaluationOptimized(sched);
-                added = _schedule.TryAdd(schedule.Name, schedule);
+                added = _schedule.TryAdd(sched, schedule);
             }
 
             return added;
@@ -246,7 +236,7 @@ namespace TaskSchedulerEngine
             if (sched != null)
             {
                 ScheduleEvaluationOptimized schedule = new ScheduleEvaluationOptimized(sched);
-                _schedule[schedule.Name] = schedule;
+                _schedule[sched] = schedule;
             }
         }
 
@@ -254,14 +244,11 @@ namespace TaskSchedulerEngine
         /// Deletes the schedule specified by its name.
         /// </summary>
         /// <returns>True if deleted</returns>
-        public bool DeleteSchedule(string name)
+        public bool DeleteSchedule(ScheduleRule sched)
         {
-            if (string.IsNullOrEmpty(name))
-                return false;
-
             var deleted = false;
             ScheduleEvaluationOptimized removed = null;
-            deleted = _schedule.TryRemove(name, out removed);
+            deleted = _schedule.TryRemove(sched, out removed);
             
             return deleted;
         }

@@ -13,7 +13,7 @@ internal class AnonymousScheduledTask : IScheduledTask
     }
 
     public Action<ScheduleRuleMatchEventArgs, CancellationToken> Callback { get; set; }
-    
+
     public void OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken c)
     {
         Callback(e, c);

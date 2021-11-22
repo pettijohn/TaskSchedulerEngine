@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,6 +29,7 @@ namespace sample
                 .WithName("EverySecond")
                 .Execute(new ConsoleWriter());
             host.Runtime.AddSchedule(s);
+            
             var s2 = new ScheduleRule()
                 .AtSeconds(0, 10, 20, 30, 40, 50, 60)
                 .WithName("EveryTenSec")
@@ -37,6 +39,13 @@ namespace sample
                     Console.WriteLine("{0}: Event intended for {1:o} occured at {2:o}", e.TaskId, e.TimeScheduledUtc, e.TimeSignaledUtc);
                 });
             host.Runtime.AddSchedule(s2);
+
+            var s3 = new ScheduleRule()
+                .Execute((e, token) => {
+                    Console.WriteLine("Execute once only!");
+                    e.Runtime.DeleteSchedule(e.ScheduleRule);
+                });
+            host.Runtime.AddSchedule(s3);
             Console.WriteLine("Press CTRL+C to quit.");
 
             var hostTask = host.Runtime.RunAsync();
