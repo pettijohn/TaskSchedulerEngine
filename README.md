@@ -43,7 +43,7 @@ static async Task Main(string[] args)
 ## Runtime Lifecycle
 
 * Create a ServiceHost, await RunAsync, and you are guaranteed graceful shutdown.
-* The ServiceHost is a helper that owns a TaskEvaluationRuntime. If you want to own the lifecycle, you may instantiate TaskEvaluationRuntime directly.
+* The ServiceHost is a helper that owns a TaskEvaluationRuntime. If you want to own the lifecycle, you may instantiate TaskEvaluationRuntime directly and use RunAsync() and RequestStop() for start and graceful shutdown.
 * TaskEvaluationRuntime moves through four states: 
   * Stopped: nothing happening, can Start back into a running state.
   * Running: evaluating every second
@@ -78,8 +78,8 @@ This should be considered a *new* library that happens to share a name and some 
 - [x] Create "service host" that blocks and handles HUP/Kill/Restart events 
       - https://github.com/dotnet/runtime/issues/15178#issue-comment-box
       - https://docs.microsoft.com/en-us/dotnet/api/system.appdomain.processexit?view=net-6.0 
-- [ ] Task exception handling  https://stackoverflow.com/questions/32067034/how-to-handle-task-run-exception/32067091
-- [ ] Can a task unschedule itself? 
+- [x] Task exception handling  https://stackoverflow.com/questions/32067034/how-to-handle-task-run-exception/32067091
+- [x] Can a task unschedule itself? 
 - [ ] Use strict mode to catch nulls 
 - [ ] Improve unit tests
 - [ ] Use proper logging with a Console sink 

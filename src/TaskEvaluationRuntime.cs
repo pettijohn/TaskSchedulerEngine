@@ -158,8 +158,7 @@ namespace TaskSchedulerEngine
                     //This also serves as a preventative step so that we can catch up if we ever drift.
                     if (timeUntilNextEvaluation > TimeSpan.Zero)
                     {
-                        // Can I await Thread.Delay with cancellation token, and cancel immediately when StopRequest? 
-                        // https://docs.microsoft.com/en-us/dotnet/api/system.threading.tasks.task.delay?view=net-6.0#System_Threading_Tasks_Task_Delay_System_Int32_System_Threading_CancellationToken_
+                        // Await Thread.Delay with cancellation token, and cancel immediately when StopRequest
                         try
                         {
                             await Task.Delay(timeUntilNextEvaluation, _evaluationLoopCancellationToken.Token);
@@ -168,11 +167,10 @@ namespace TaskSchedulerEngine
                         {
                             break;
                         }
-                        //Thread.Sleep(timeUntilNextEvaluation);
                     }
 
-                    //TODO : use a stopwatch to capture how long the Evaluate method takes and publish a perf counter. "Percent time spent in evaluation."
-                    //If it gets close to a second, we're in trouble. 
+                    //TODO : use a stopwatch to capture how long the Evaluate method takes and publish a perf counter.
+                    // "Percent time spent in evaluation." If it gets close to a second, we're in trouble. 
                     Evaluate(_nextSecondToEvaluate);
 
                     lock (_lock_nextSecondToEvaluate)
@@ -183,7 +181,7 @@ namespace TaskSchedulerEngine
             }
             finally
             {
-                await Task.WhenAll(_runningTasks.Keys);
+                // Clean up the cancellation token 
                 if(_evaluationLoopCancellationToken != null)
                     _evaluationLoopCancellationToken.Dispose();
             }
@@ -270,8 +268,7 @@ namespace TaskSchedulerEngine
         public bool DeleteSchedule(ScheduleRule sched)
         {
             var deleted = false;
-            ScheduleEvaluationOptimized removed = null;
-            deleted = _schedule.TryRemove(sched, out removed);
+            deleted = _schedule.TryRemove(sched, out _);
             
             return deleted;
         }

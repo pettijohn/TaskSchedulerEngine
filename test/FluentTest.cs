@@ -17,18 +17,24 @@ namespace SchedulerEngineRuntimeTests
             var host = new ServiceHost();
             var hostTask = host.Runtime.RunAsync();
             //Verify output. Should see one or two 10-second ticks, one or two 1,6 ticks, and one or two 2,7 ticks.
-            var s = new ScheduleRule()
+            host.Runtime.AddSchedule(new ScheduleRule()
                 .AtSeconds(0, 10, 20, 30, 40, 50)
                 .WithLocalTime()
-                .Execute(new TenSecTask());
+                .Execute(new TenSecTask()));
 
             Thread.Sleep(new TimeSpan(0, 0, 2));
 
-            host.Runtime.AddSchedule(new ScheduleRule().WithName("OneSix").AtSeconds(1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56).Execute(new OneSixTask()));
+            host.Runtime.AddSchedule(new ScheduleRule()
+                .WithName("OneSix")
+                .AtSeconds(1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56)
+                .Execute(new OneSixTask()));
 
             Thread.Sleep(new TimeSpan(0, 0, 6));
 
-            host.Runtime.UpdateSchedule(new ScheduleRule().WithName("OneSix").AtSeconds(2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57).Execute(new OneSixTask()));
+            host.Runtime.UpdateSchedule(new ScheduleRule()
+                .WithName("TwoSeven")
+                .AtSeconds(2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57)
+                .Execute(new TwoSevenTask()));
 
             Thread.Sleep(new TimeSpan(0, 0, 6));
 
