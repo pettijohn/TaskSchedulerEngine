@@ -51,7 +51,7 @@ namespace TaskSchedulerEngine
         private TaskEvaluationRuntimeState _runState = TaskEvaluationRuntimeState.Stopped;
         private object _lock_runState = new object();
 
-        public Action<Exception> HandleTaskException = (Exception e) => { Console.WriteLine(e); };
+        public Action<Exception>? UnhandledScheduledTaskException;
 
         private CancellationTokenSource? _evaluationLoopCancellationToken;
 
@@ -131,7 +131,8 @@ namespace TaskSchedulerEngine
             }
 
             //Set up a cancellation token for the main loop
-            using (_evaluationLoopCancellationToken = new CancellationTokenSource())
+            _evaluationLoopCancellationToken = new CancellationTokenSource();
+            try 
             {
                 //Begin the evaluation pump
                 while (!_evaluationLoopCancellationToken.IsCancellationRequested)
@@ -180,12 +181,17 @@ namespace TaskSchedulerEngine
                     }
                 }
             }
+            finally
+            {
+                await Task.WhenAll(_runningTasks.Keys);
+                if(_evaluationLoopCancellationToken != null)
+                    _evaluationLoopCancellationToken.Dispose();
+            }
         }
 
         /// <summary>
         /// Evaluate all of the rules in the schedule and see if they match the specified second. If it matches, spin it off on a new thread. 
         /// </summary>
-        /// <returns>The number of schedules that evaluated to TRUE, that is, their conditions were met by this moment in time.</returns>
         private int Evaluate(DateTime secondToEvaluate)
         {
             //TODO : convert secondToEvaluate to a faster format and avoid the extra bit-shifts downstream.
@@ -198,15 +204,32 @@ namespace TaskSchedulerEngine
                 {
                     i++;
                     eventArgs.Runtime = this;
-                    var workerTask = System.Threading.Tasks.Task.Run(() => scheduleItem.Value.Task.OnScheduleRuleMatch(eventArgs, _evaluationLoopCancellationToken.Token));
-                    // TODO - exception handling of Task threads 
-                    // Keep a ConcurrentDict of running Tasks for graceful shutdown 
-                    _runningTasks[workerTask] = workerTask;
-                    workerTask.ContinueWith(t =>
+                    Task? workerTask = null;
+                    try
                     {
+                        workerTask = System.Threading.Tasks.Task.Run(() => scheduleItem.Value.Task.OnScheduleRuleMatch(eventArgs, _evaluationLoopCancellationToken.Token));
+                        // Keep a ConcurrentDict of running Tasks for graceful shutdown 
+                        _runningTasks[workerTask] = workerTask;
                         Console.WriteLine("Running task count: " + _runningTasks.Count);
-                        _runningTasks.Remove(t, out t);
-                    });
+                        workerTask.ContinueWith((t) =>
+                        {
+                            // Remove myself from the running tasks
+                            _runningTasks.Remove(t, out _);
+
+                            // Check for exception and pass to handler
+                            if(t.IsFaulted)
+                                if(UnhandledScheduledTaskException != null)
+                                    UnhandledScheduledTaskException(t.Exception);
+                        });
+                    }
+                    catch(Exception e)
+                    {
+                        // This code block should never be reached - the ContinueWith handler 
+                        // should take care of it. But I don't want the main loop to ever die, 
+                        // so being extra cautious. 
+                        if(UnhandledScheduledTaskException != null)
+                            UnhandledScheduledTaskException(e);
+                    }
                 }
             }
 

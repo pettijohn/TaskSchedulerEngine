@@ -25,28 +25,35 @@ namespace sample
             Console.WriteLine("Main on Thread " + System.Threading.Thread.CurrentThread.ManagedThreadId);
 
             var host = new ServiceHost();
-            var s = new ScheduleRule()
+            host.Runtime.AddSchedule(new ScheduleRule()
                 .WithName("EverySecond")
-                .Execute(new ConsoleWriter());
-            host.Runtime.AddSchedule(s);
+                .Execute(new ConsoleWriter()));
             
-            var s2 = new ScheduleRule()
+            host.Runtime.AddSchedule(new ScheduleRule()
                 .AtSeconds(0, 10, 20, 30, 40, 50, 60)
                 .WithName("EveryTenSec")
-                //.Execute(new ConsoleWriteTask());
                 .Execute((e, token) => {
-                if(!token.IsCancellationRequested)
-                    Console.WriteLine("{0}: Event intended for {1:o} occured at {2:o}", e.TaskId, e.TimeScheduledUtc, e.TimeSignaledUtc);
-                });
-            host.Runtime.AddSchedule(s2);
+                    if(!token.IsCancellationRequested)
+                        Console.WriteLine("{0}: Event intended for {1:o} occured at {2:o}", e.TaskId, e.TimeScheduledUtc, e.TimeSignaledUtc);
+                }));
 
-            var s3 = new ScheduleRule()
+            host.Runtime.AddSchedule(new ScheduleRule()
                 .Execute((e, token) => {
                     Console.WriteLine("Execute once only!");
                     e.Runtime.DeleteSchedule(e.ScheduleRule);
-                });
-            host.Runtime.AddSchedule(s3);
+                }));
+
+            host.Runtime.AddSchedule(new ScheduleRule()
+                .Execute((e, token) => {
+                    if(!token.IsCancellationRequested)
+                        throw new Exception("This is an unhandled exception in a task, handle it with TaskSchedulerRuntime.UnhandledScheduledTaskException.");
+                }));
+            
             Console.WriteLine("Press CTRL+C to quit.");
+
+            // Set up an unhandled exception handler for tasks
+            host.Runtime.UnhandledScheduledTaskException = (Exception e) => 
+                { Console.WriteLine(e.Message); };
 
             var hostTask = host.Runtime.RunAsync();
             await hostTask;
