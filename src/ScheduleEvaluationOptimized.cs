@@ -123,7 +123,8 @@ namespace TaskSchedulerEngine
 
         /// <summary>
         /// Compare the provided DateTime to the schedule definition. If the event should occur,
-        /// the <see cref="ConditionsMet"/> will fire and this will return true.
+        /// this will return a <see cref="ScheduleRuleMatchEventArgs"/> for passing to the callback, 
+        /// else it will return null.
         /// </summary>
         /// <param name="DateTime">In UTC</param>
         /// <returns></returns>
