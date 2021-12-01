@@ -4,7 +4,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build",
+            "label": "Build",
             "command": "dotnet",
             "type": "shell",
             "args": [
@@ -23,7 +23,7 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build",
+            "label": "Clean",
             "command": "dotnet",
             "type": "shell",
             "args": [
@@ -32,6 +32,22 @@
             "group": "none",
             "presentation": {
                 "reveal": "silent"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Test with coverage",
+            "command": "dotnet",
+            "type": "shell",
+            "args": [
+                "test",
+                "/p:CollectCoverage=true",
+                "/p:CoverletOutputFormat=lcov",
+                "/p:CoverletOutput=./lcov.info"
+            ],
+            "group": "none",
+            "presentation": {
+                "reveal": "always"
             },
             "problemMatcher": "$msCompile"
         }

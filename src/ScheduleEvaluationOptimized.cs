@@ -59,7 +59,7 @@ namespace TaskSchedulerEngine
                 bool hasElements = false;
                 foreach (int nthBit in value)
                 {
-                    if (nthBit > 63 || nthBit < 0)
+                    if (nthBit > 62 || nthBit < 0)
                     {
                         throw new ArgumentOutOfRangeException(PARSE_BOUNDS_ERROR);
                     }

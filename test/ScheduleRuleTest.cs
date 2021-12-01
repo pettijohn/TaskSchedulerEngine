@@ -28,7 +28,13 @@ namespace SchedulerEngineRuntimeTests
             testInput = new int[] { 0, 3, 62 };
             expected = 0b100000000000000000000000000000000000000000000000000000000001001;
             Assert.AreEqual(expected, ScheduleEvaluationOptimized.ParseIntArrayToBitfield(testInput));
+        }
 
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void BitfieldOverflowException()
+        {
+            ScheduleEvaluationOptimized.ParseIntArrayToBitfield(new int[] { 63 });
         }
 
         [TestMethod]
@@ -47,6 +53,10 @@ namespace SchedulerEngineRuntimeTests
                 .AtHours(0, 23)
                 .AtMinutes(0)
                 .AtSeconds(0)
+                .AtDaysOfWeek(2)
+                .AtDaysOfMonth(30)
+                .AtMonths(11)
+                .WithName("Optional name/ID parameter")
                 .WithUtc();
 
             var evalOptimized = new ScheduleEvaluationOptimized(rule);

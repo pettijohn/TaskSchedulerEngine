@@ -22,29 +22,10 @@ namespace TaskSchedulerEngine
 
         public ScheduleRule(string name)
         {
-            _name = name;
+            Name = name;
         }
 
-        public string Name
-        {
-            get
-            {
-                if (!string.IsNullOrEmpty(_name))
-                {
-                    return _name;
-                }
-                else
-                {
-                    return Guid.NewGuid().ToString();
-                }
-            }
-            set
-            {
-                _name = value;
-            }
-        }
-        string _name;
-
+        public string Name { get; private set; }
 
         /// <summary>
         /// Specify the name/unique identifier of the schedule
@@ -57,30 +38,28 @@ namespace TaskSchedulerEngine
             return this;
         }
 
-        public int[] Months { get { return _months; } }
-        int[] _months;
+        public int[] Months { get; private set; }
+
         /// <summary>
         /// List of months, where 1=Jan, or null for any
         /// </summary>
         public ScheduleRule AtMonths(params int[] value)
         {
-            _months = value;
+            Months = value;
             return this;
         }
 
-        public int[] DaysOfMonth { get { return _daysOfMonth; } }
-        int[] _daysOfMonth;
+        public int[] DaysOfMonth { get; private set; }
         /// <summary>
         /// 1 to 31
         /// </summary>
         public ScheduleRule AtDaysOfMonth(params int[] value)
         {
-            _daysOfMonth = value;
+            DaysOfMonth = value;
             return this;
         }
 
-        public int[] DaysOfWeek { get { return _daysOfWeek; } }
-        int[] _daysOfWeek;
+        public int[] DaysOfWeek { get; private set; }
         /// <summary>
         /// 0=Sunday, 1=Mon... 6=Saturday
         /// </summary>
@@ -88,39 +67,35 @@ namespace TaskSchedulerEngine
         /// <returns></returns>
         public ScheduleRule AtDaysOfWeek(params int[] value)
         {
-            _daysOfWeek = value;
+            DaysOfWeek = value;
             return this;
         }
-        public int[] Hours { get { return _hours; } }
-        int[] _hours;
+        public int[] Hours { get; private set; }
         /// <summary>
         /// 0 (12am, start of the day) to 23 (11pm)
         /// </summary>
         /// <param name="value"></param>
-        /// <returns></returns>
         public ScheduleRule AtHours(params int[] value)
         {
-            _hours = value;
+            Hours = value;
             return this;
         }
-        public int[] Minutes { get { return _minutes; } }
-        int[] _minutes;
+        public int[] Minutes { get; private set; }
         /// <summary>
         /// 0 to 59
         /// </summary>
         public ScheduleRule AtMinutes(params int[] value)
         {
-            _minutes = value;
+            Minutes = value;
             return this;
         }
-        public int[] Seconds { get { return _seconds; } }
-        int[] _seconds;
+        public int[] Seconds { get; private set; }
         /// <summary>
         /// 0 to 59
         /// </summary>
         public ScheduleRule AtSeconds(params int[] value)
         {
-            _seconds = value;
+            Seconds = value;
             return this;
         }
         
