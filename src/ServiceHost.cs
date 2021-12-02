@@ -39,7 +39,11 @@ namespace TaskSchedulerEngine
                     Console.WriteLine("Aborting immediately.");
                 }
             };
-            AppDomain.CurrentDomain.ProcessExit += (object? sender, EventArgs e) => Runtime.RequestStop();
+            AppDomain.CurrentDomain.ProcessExit += (object? sender, EventArgs e) =>
+            {
+                Trace.WriteLine("AppDomain unloading, requesting graceful shutdown");
+                Runtime.RequestStop();
+            };
         }
 
         public ServiceHost() : this(new TaskEvaluationRuntime())

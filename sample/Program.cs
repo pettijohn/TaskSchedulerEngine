@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using TaskSchedulerEngine;
@@ -19,8 +20,10 @@ namespace sample
     class Program
     {
         static async Task Main(string[] args)
-        {
-            Console.WriteLine("Main on Thread " + System.Threading.Thread.CurrentThread.ManagedThreadId);
+        {   
+            //Internal messages on Trace, connect if you want
+            //Trace.Listeners.Add(new ConsoleTraceListener());
+            Trace.WriteLine("Main on Thread " + System.Threading.Thread.CurrentThread.ManagedThreadId);
 
             var host = new ServiceHost();
             host.Runtime.AddSchedule(new ScheduleRule()
@@ -28,7 +31,7 @@ namespace sample
                 .Execute(new ConsoleWriter()));
             
             host.Runtime.AddSchedule(new ScheduleRule()
-                .AtSeconds(0, 10, 20, 30, 40, 50, 60)
+                .AtSeconds(0, 10, 20, 30, 40, 50)
                 .WithName("EveryTenSec")
                 .Execute((e, token) => {
                     if(!token.IsCancellationRequested)
@@ -37,15 +40,12 @@ namespace sample
 
             host.Runtime.AddSchedule(new ScheduleRule()
                 .Execute((e, token) => {
-                    Console.WriteLine("Execute once only!");
+                    Console.WriteLine("Execute once only, delete myself.");
                     e.Runtime.DeleteSchedule(e.ScheduleRule);
+                    throw new Exception("This is an unhandled exception in a task, handle it with TaskSchedulerRuntime.UnhandledScheduledTaskException.");
                 }));
 
-            host.Runtime.AddSchedule(new ScheduleRule()
-                .Execute((e, token) => {
-                    if(!token.IsCancellationRequested)
-                        throw new Exception("This is an unhandled exception in a task, handle it with TaskSchedulerRuntime.UnhandledScheduledTaskException.");
-                }));
+
             
             Console.WriteLine("Press CTRL+C to quit.");
 

@@ -64,29 +64,7 @@ This should be considered a *new* library that happens to share a name and some 
 
 ## TODO
 
-- [x] Simplify thread locking code
-- [x] Make ITask an object instance and not created every time
-- [x] Verify multiple tasks invoked by same scheuldeRule execute in parallel - wrong, they are supposed to execute sequientially because they are += to schedule.ConditionsMet
-- [x] ScheduleRule should only have a single Task to invoke. Make caller build their sequential logic into a Task. Simplifies multithreading understandability.
-- [x] Remove TaskID (?) or replace it with Interlocked.Increment()~
-- [x] Keep track of running tasks so they can gracefully shut down
-- [x] Use Interlocked.Exchange to set running state of Pump - no, can't use with Enum without boxing/unboxing code, lock() is cleaner
-- [x] Use async/await pattern
-- [x] Remove singleton & scheduleRuntime 
-- [x] Fix bug where you call AddSchedule() before Start() and it throws null ref 
-- [#] Allow ScheduleRule.Execute to accept an Action<ScheduleRuleMatchEventArgs, CancellationToken>
-- [x] Create "service host" that blocks and handles HUP/Kill/Restart events 
-      - https://github.com/dotnet/runtime/issues/15178#issue-comment-box
-      - https://docs.microsoft.com/en-us/dotnet/api/system.appdomain.processexit?view=net-6.0 
-- [x] Task exception handling  https://stackoverflow.com/questions/32067034/how-to-handle-task-run-exception/32067091
-- [x] Can a task unschedule itself? 
-- [ ] Use strict mode to catch nulls 
-- [ ] Improve unit tests
-- [ ] Use proper logging with a Console sink 
-- [x] Improve the pump loop to abort quickly rather than waiting 1s https://stackoverflow.com/questions/3460280/is-there-a-way-to-wake-a-sleeping-thread 
-- [x] Task should be cancellable on shutdown 
-
-- [ ] Use var in all definitions 
+- [x] Use Trace logging with a Console sink 
 - [ ] Add year to support single execution
 - [ ] Add expiration and on-start/on-stop methods. 
 

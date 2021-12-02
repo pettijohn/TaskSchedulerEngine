@@ -6,8 +6,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -77,13 +76,13 @@ namespace TaskSchedulerEngine
             {
                 _runState = TaskEvaluationRuntimeState.StoppingGracefully;
             }
-            Console.WriteLine("Waiting for {0} Tasks to complete.", _runningTasks.Count);
+            Trace.WriteLine($"Waiting for {_runningTasks.Count} Tasks to complete.");
             await Task.WhenAll(_runningTasks.Keys);
             lock (_lock_runState)
             {
                 _runState = TaskEvaluationRuntimeState.Stopped;
             }
-            Console.WriteLine("Stopped");
+            Trace.WriteLine("Stopped");
         }
 
         /// <summary>
@@ -116,7 +115,7 @@ namespace TaskSchedulerEngine
         /// </summary>
         private async Task EvaluationLoop()
         {
-            Console.WriteLine("Pump Internal on Thread " + System.Threading.Thread.CurrentThread.ManagedThreadId);
+            Trace.WriteLine("Pump Internal on Thread " + System.Threading.Thread.CurrentThread.ManagedThreadId);
             //The first time through, we need to set up the initial values.
 
             //Compute the floor of the current second.
@@ -213,7 +212,7 @@ namespace TaskSchedulerEngine
                         });
                         // Keep a ConcurrentDict of running Tasks for graceful shutdown 
                         _runningTasks[workerTask] = workerTask;
-                        Console.WriteLine("Running task count: " + _runningTasks.Count);
+                        Trace.WriteLine("Running task count: " + _runningTasks.Count);
                         workerTask.ContinueWith((t) =>
                         {
                             // Remove myself from the running tasks
