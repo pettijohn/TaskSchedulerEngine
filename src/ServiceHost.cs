@@ -24,7 +24,7 @@ namespace TaskSchedulerEngine
         public ServiceHost(TaskEvaluationRuntime runtime) 
         {
             Runtime = runtime;
-            Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs args) =>
+            Console.CancelKeyPress += (object? sender, ConsoleCancelEventArgs args) =>
             {
                 // see also https://stackoverflow.com/questions/177856/how-do-i-trap-ctrl-c-sigint-in-a-c-sharp-console-app
                 var stopSuccess = Runtime.RequestStop();
@@ -39,7 +39,7 @@ namespace TaskSchedulerEngine
                     Console.WriteLine("Aborting immediately.");
                 }
             };
-            AppDomain.CurrentDomain.ProcessExit += (object sender, EventArgs e) => Runtime.RequestStop();
+            AppDomain.CurrentDomain.ProcessExit += (object? sender, EventArgs e) => Runtime.RequestStop();
         }
 
         public ServiceHost() : this(new TaskEvaluationRuntime())

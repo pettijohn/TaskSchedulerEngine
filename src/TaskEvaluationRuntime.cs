@@ -205,7 +205,12 @@ namespace TaskSchedulerEngine
                     Task? workerTask = null;
                     try
                     {
-                        workerTask = System.Threading.Tasks.Task.Run(() => scheduleItem.Value.Task.OnScheduleRuleMatch(eventArgs, _evaluationLoopCancellationToken.Token));
+                        workerTask = System.Threading.Tasks.Task.Run(() => {
+                            if(_evaluationLoopCancellationToken != null)
+                                scheduleItem.Value.Task.OnScheduleRuleMatch(eventArgs, _evaluationLoopCancellationToken.Token);
+                            else
+                                throw new ArgumentNullException("CancellationTokenSource unexpectedly null.");
+                        });
                         // Keep a ConcurrentDict of running Tasks for graceful shutdown 
                         _runningTasks[workerTask] = workerTask;
                         Console.WriteLine("Running task count: " + _runningTasks.Count);
@@ -215,8 +220,8 @@ namespace TaskSchedulerEngine
                             _runningTasks.Remove(t, out _);
 
                             // Check for exception and pass to handler
-                            if(t.IsFaulted)
-                                if(UnhandledScheduledTaskException != null)
+                            if (t.IsFaulted)
+                                if (UnhandledScheduledTaskException != null && t.Exception != null)
                                     UnhandledScheduledTaskException(t.Exception);
                         });
                     }

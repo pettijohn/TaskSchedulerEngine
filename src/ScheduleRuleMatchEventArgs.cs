@@ -12,10 +12,21 @@ namespace TaskSchedulerEngine
 {
     public class ScheduleRuleMatchEventArgs : EventArgs
     {
-        public DateTime TimeSignaledUtc { get; set; }
-        public DateTime TimeScheduledUtc { get; set; }
+        public ScheduleRuleMatchEventArgs(
+            DateTime timeSignaledUtc, DateTime timeScheduledUtc, long taskId, 
+            ScheduleRule scheduleRule, TaskEvaluationRuntime? runtime
+        )
+        {
+            TimeSignaledUtc = timeSignaledUtc;
+            TimeScheduledUtc = timeScheduledUtc;
+            TaskId = taskId;
+            ScheduleRule = scheduleRule;
+            Runtime = runtime;
+        }
+        public DateTime TimeSignaledUtc { get; private set; }
+        public DateTime TimeScheduledUtc { get; private set; }
         public long TaskId { get; set; }
-        public ScheduleRule ScheduleRule { get; set; }
-        public TaskEvaluationRuntime Runtime { get; set; }
+        public ScheduleRule ScheduleRule { get; private set; }
+        public TaskEvaluationRuntime? Runtime { get; internal set; }
     }
 }

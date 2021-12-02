@@ -5,6 +5,7 @@
  */
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -19,6 +20,9 @@ namespace TaskSchedulerEngine
     {
         public ScheduleEvaluationOptimized(ScheduleRule sched)
         {
+            if(sched.Task == null)
+                throw new ArgumentNullException("ScheduleRule must have a Task, set it with Execute()");
+
             this._originalSchedule = sched;
             this.Name = sched.Name;
             this.Month = ParseIntArrayToBitfield(sched.Months);
@@ -49,25 +53,23 @@ namespace TaskSchedulerEngine
         public static long ParseIntArrayToBitfield(IEnumerable<int> value)
         {
             //Undefined or wildcard
-            if (value == null)
+            if (value == null || value.Count() == 0)
             {
                 return -1;
             }
             else
             {
                 long destinationField = 0;
-                bool hasElements = false;
                 foreach (int nthBit in value)
                 {
                     if (nthBit > 62 || nthBit < 0)
                     {
                         throw new ArgumentOutOfRangeException(PARSE_BOUNDS_ERROR);
                     }
-                    hasElements = true;
                     //1L << n is mathematically the same as 2^^n
                     destinationField |= (1L << nthBit);
                 }
-                return hasElements ? destinationField : -1;
+                return destinationField;
             }
         }
 
@@ -112,7 +114,7 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Primary key of the schedule. 
         /// </summary>
-        public string Name { get; set; }
+        public string? Name { get; set; }
         public long Month { get; set; }
         public long DayOfMonth { get; set; }
         public long DayOfWeek { get; set; }
@@ -147,11 +149,13 @@ namespace TaskSchedulerEngine
 
             if (match)
             {
-                ScheduleRuleMatchEventArgs e = new ScheduleRuleMatchEventArgs();
-                e.TimeScheduledUtc = inputValueUtc;
-                e.TimeSignaledUtc = DateTime.UtcNow;
-                e.TaskId = Interlocked.Increment(ref TaskID);
-                e.ScheduleRule = this._originalSchedule;
+                ScheduleRuleMatchEventArgs e = new ScheduleRuleMatchEventArgs(
+                    DateTime.UtcNow,
+                    inputValueUtc,
+                    Interlocked.Increment(ref TaskID),
+                    this._originalSchedule,
+                    null
+                );
                 return e;
             }
 

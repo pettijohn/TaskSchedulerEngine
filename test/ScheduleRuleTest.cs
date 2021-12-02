@@ -57,7 +57,8 @@ namespace SchedulerEngineRuntimeTests
                 .AtDaysOfMonth(30)
                 .AtMonths(11)
                 .WithName("Optional name/ID parameter")
-                .WithUtc();
+                .WithUtc()
+                .Execute((e, c) => {}); //noop callback, as callback cannot be null
 
             var evalOptimized = new ScheduleEvaluationOptimized(rule);
 
@@ -66,6 +67,102 @@ namespace SchedulerEngineRuntimeTests
             var testResult = evalOptimized.Evaluate(evalTime);
             Assert.IsNotNull(testResult);
             Assert.AreEqual(evalTime, testResult.TimeScheduledUtc);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void Bounds_Month_Min()
+        {
+            var rule = new ScheduleRule()
+                .AtMonths(0);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void Bounds_Month_Max()
+        {
+            var rule = new ScheduleRule()
+                .AtMonths(13);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void Bounds_DaysOfMonth_Min()
+        {
+            var rule = new ScheduleRule()
+                .AtDaysOfMonth(0);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void Bounds_DaysOfMonth_Max()
+        {
+            var rule = new ScheduleRule()
+                .AtDaysOfMonth(32);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void Bounds_DaysOfWeek_Min()
+        {
+            var rule = new ScheduleRule()
+                .AtDaysOfWeek(-1);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void Bounds_DaysOfWeek_Max()
+        {
+            var rule = new ScheduleRule()
+                .AtDaysOfWeek(7);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void Bounds_Hours_Min()
+        {
+            var rule = new ScheduleRule()
+                .AtHours(-1);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void Bounds_Hours_Max()
+        {
+            var rule = new ScheduleRule()
+                .AtHours(24);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void Bounds_Minutes_Min()
+        {
+            var rule = new ScheduleRule()
+                .AtMinutes(-1);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void Bounds_Minutes_Max()
+        {
+            var rule = new ScheduleRule()
+                .AtMinutes(60);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void Bounds_Seconds_Min()
+        {
+            var rule = new ScheduleRule()
+                .AtSeconds(-1);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void Bounds_Seconds_Max()
+        {
+            var rule = new ScheduleRule()
+                .AtSeconds(60);
         }
     }
 }
