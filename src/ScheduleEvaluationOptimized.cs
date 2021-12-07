@@ -23,7 +23,6 @@ namespace TaskSchedulerEngine
             if(sched.Task == null)
                 throw new ArgumentNullException("ScheduleRule must have a Task, set it with Execute()");
 
-            this._originalSchedule = sched;
             this.Name = sched.Name;
             this.Month = ParseIntArrayToBitfield(sched.Months);
             this.DayOfMonth = ParseIntArrayToBitfield(sched.DaysOfMonth);
@@ -35,17 +34,9 @@ namespace TaskSchedulerEngine
             this.Task = sched.Task;
         }
 
-        private ScheduleRule _originalSchedule;
-
-        private const string PARSE_BOUNDS_ERROR = "The only acceptable values for scheduling are from 0 to 63, an empty string, or the character '*'.";
+        private const string PARSE_BOUNDS_ERROR = "The only allowable values for scheduling are from 0 to 62.";
 
         public IScheduledTask Task { get; private set; }
-
-        /// <summary>
-        /// Keep a counter of how many Tasks have executed. Each Task invocation will have a unique sequential ID.
-        /// Only update with System.Threading.Interlocked.Increment(). 
-        /// </summary>
-        private static long TaskID = 0;
 
         /// <summary>
         /// Convert an int[] such as {0,15,47} to a bitfield with the 0th, 15th and 47th bits set to 1.
@@ -130,36 +121,20 @@ namespace TaskSchedulerEngine
         /// </summary>
         /// <param name="DateTime">In UTC</param>
         /// <returns></returns>
-        public ScheduleRuleMatchEventArgs? Evaluate(DateTime inputValueUtc)
+        public bool EvaluateRuleMatch(DateTime inputValueUtc)
         {
-            //TODO : move compareValue into a more compare-friendly object. Peformance-wise, probably not ever necessary. 
-
             //The inputValue is in UTC, but the rule supports comparing in Local time.
             //Determine which we want to compare and save it as compareValue.
             DateTime compareValue = Kind == DateTimeKind.Local ? compareValue = inputValueUtc.ToLocalTime() : compareValue = inputValueUtc;
             
             //Perform a bitwise AND on the compareValue and this. If the result is non-zero, then there is a match.
             //1 << x is the same as 2^^x, just faster since it's not a floating point op.
-            bool match = ((1 << compareValue.Month & this.Month) != 0)
+            return ((1L << compareValue.Month & this.Month) != 0)
                 && ((1L << compareValue.Day & this.DayOfMonth) != 0)
                 && ((1L << (int)compareValue.DayOfWeek & this.DayOfWeek) != 0)
                 && ((1L << compareValue.Hour & this.Hour) != 0)
                 && ((1L << compareValue.Minute & this.Minute) != 0)
                 && ((1L << compareValue.Second & this.Second) != 0);
-
-            if (match)
-            {
-                ScheduleRuleMatchEventArgs e = new ScheduleRuleMatchEventArgs(
-                    DateTime.UtcNow,
-                    inputValueUtc,
-                    Interlocked.Increment(ref TaskID),
-                    this._originalSchedule,
-                    null
-                );
-                return e;
-            }
-
-            return null;
         }
 
     }

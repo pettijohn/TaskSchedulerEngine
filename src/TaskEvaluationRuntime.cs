@@ -55,6 +55,12 @@ namespace TaskSchedulerEngine
         private CancellationTokenSource? _evaluationLoopCancellationToken;
 
         /// <summary>
+        /// Keep a counter of how many Tasks have executed. Each Task invocation will have a unique sequential ID.
+        /// Only update with System.Threading.Interlocked.Increment(). 
+        /// </summary>
+        private static long TaskID = 0;
+
+        /// <summary>
         /// Start the evaluation pump on a worker thread, waits for the thread to stop, then gracefully shuts down.
         /// Call RequestStop to stop the background thread. 
         /// </summary>
@@ -76,13 +82,13 @@ namespace TaskSchedulerEngine
             {
                 _runState = TaskEvaluationRuntimeState.StoppingGracefully;
             }
-            Trace.WriteLine($"Waiting for {_runningTasks.Count} Tasks to complete.");
+            Trace.WriteLine($"Waiting for {_runningTasks.Count} Tasks to complete.", "TaskSchedulerEngine");
             await Task.WhenAll(_runningTasks.Keys);
             lock (_lock_runState)
             {
                 _runState = TaskEvaluationRuntimeState.Stopped;
             }
-            Trace.WriteLine("Stopped");
+            Trace.WriteLine("Stopped", "TaskSchedulerEngine");
         }
 
         /// <summary>
@@ -115,7 +121,7 @@ namespace TaskSchedulerEngine
         /// </summary>
         private async Task EvaluationLoop()
         {
-            Trace.WriteLine("Pump Internal on Thread " + System.Threading.Thread.CurrentThread.ManagedThreadId);
+            Trace.WriteLine("Pump Internal on Thread " + System.Threading.Thread.CurrentThread.ManagedThreadId, "TaskSchedulerEngine");
             //The first time through, we need to set up the initial values.
 
             //Compute the floor of the current second.
@@ -196,11 +202,24 @@ namespace TaskSchedulerEngine
             
             foreach (KeyValuePair<ScheduleRule, ScheduleEvaluationOptimized> scheduleItem in _schedule)
             {
-                var eventArgs = scheduleItem.Value.Evaluate(secondToEvaluate);
-                if(eventArgs != null)
+                //Check for expired schedules 
+                if(secondToEvaluate > scheduleItem.Key.Expiration)
                 {
+                    continue;
+                }
+
+                var match = scheduleItem.Value.EvaluateRuleMatch(secondToEvaluate);
+                if (match)
+                {
+                    var eventArgs = new ScheduleRuleMatchEventArgs(
+                        DateTime.UtcNow,
+                        secondToEvaluate,
+                        Interlocked.Increment(ref TaskEvaluationRuntime.TaskID),
+                        scheduleItem.Key,
+                        this
+                    );
+
                     i++;
-                    eventArgs.Runtime = this;
                     Task? workerTask = null;
                     try
                     {
@@ -212,7 +231,7 @@ namespace TaskSchedulerEngine
                         });
                         // Keep a ConcurrentDict of running Tasks for graceful shutdown 
                         _runningTasks[workerTask] = workerTask;
-                        Trace.WriteLine("Running task count: " + _runningTasks.Count);
+                        Trace.WriteLine("Running task count: " + _runningTasks.Count, "TaskSchedulerEngine");
                         workerTask.ContinueWith((t) =>
                         {
                             // Remove myself from the running tasks
@@ -237,6 +256,7 @@ namespace TaskSchedulerEngine
 
             return i;
         }
+        
 
         /// <summary>
         /// Adds a schedule at runtime

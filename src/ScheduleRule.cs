@@ -121,6 +121,13 @@ namespace TaskSchedulerEngine
             return this;
         }
 
+        public DateTime Expiration { get; private set; } = DateTime.MaxValue;
+        public ScheduleRule ExpiresAfter(DateTime value)
+        {
+            Expiration = value;
+            return this;
+        }
+
         public IScheduledTask? Task { get; set; }
 
         public ScheduleRule Execute(Action<ScheduleRuleMatchEventArgs, CancellationToken> callback)

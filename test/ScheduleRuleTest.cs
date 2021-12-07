@@ -64,9 +64,8 @@ namespace SchedulerEngineRuntimeTests
 
             var evalTime = new DateTime(2021, 11, 30, 23, 0, 0, DateTimeKind.Utc);
 
-            var testResult = evalOptimized.Evaluate(evalTime);
-            Assert.IsNotNull(testResult);
-            Assert.AreEqual(evalTime, testResult.TimeScheduledUtc);
+            var testResult = evalOptimized.EvaluateRuleMatch(evalTime);
+            Assert.IsTrue(testResult);
         }
 
         [TestMethod]

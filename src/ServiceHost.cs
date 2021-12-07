@@ -41,7 +41,7 @@ namespace TaskSchedulerEngine
             };
             AppDomain.CurrentDomain.ProcessExit += (object? sender, EventArgs e) =>
             {
-                Trace.WriteLine("AppDomain unloading, requesting graceful shutdown");
+                Trace.WriteLine("AppDomain unloading, requesting graceful shutdown", "TaskSchedulerEngine");
                 Runtime.RequestStop();
             };
         }

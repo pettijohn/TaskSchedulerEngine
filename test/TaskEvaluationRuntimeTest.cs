@@ -41,6 +41,25 @@ namespace SchedulerEngineRuntimeTests
         }
 
         [TestMethod]
+        public void RemoveExpired()
+        {
+            bool executed = false;
+            var runtime = new TaskEvaluationRuntime();
+            runtime.AddSchedule(new ScheduleRule()
+                .ExpiresAfter(DateTime.Now.AddDays(-1))
+                .Execute((e, token) => {
+                    executed = true;
+                }));
+
+            var task = runtime.RunAsync();
+            Thread.Sleep(1200);
+            runtime.RequestStop();
+            task.Wait();
+
+            Assert.IsFalse(executed);
+        }
+
+        [TestMethod]
         public void TwoLongRunningTasksExecuteSimultaneouslyAndGracefulShutdown()
         {
             bool executed1 = false;
