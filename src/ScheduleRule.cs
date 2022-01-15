@@ -4,12 +4,7 @@
  * https://github.com/pettijohn/TaskSchedulerEngine
  */
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Reflection;
-using System.Configuration;
-using System.Threading.Tasks;
 using System.Threading;
 
 namespace TaskSchedulerEngine
@@ -20,7 +15,7 @@ namespace TaskSchedulerEngine
         {
         }
 
-        public string? Name { get; private set; } = null;
+        public string? Name { get; set; } = null;
 
         /// <summary>
         /// Specify the name/unique identifier of the schedule
@@ -33,7 +28,7 @@ namespace TaskSchedulerEngine
             return this;
         }
 
-        public int[] Months { get; private set; } = new int[] { };
+        public int[] Months { get; set; } = new int[] { };
 
         /// <summary>
         /// List of months, where 1=Jan, or Empty for any
@@ -46,7 +41,7 @@ namespace TaskSchedulerEngine
             return this;
         }
 
-        public int[] DaysOfMonth { get; private set; } = new int[] { };
+        public int[] DaysOfMonth { get; set; } = new int[] { };
         /// <summary>
         /// 1 to 31 or Empty fo any
         /// </summary>
@@ -59,7 +54,7 @@ namespace TaskSchedulerEngine
             return this;
         }
 
-        public int[] DaysOfWeek { get; private set; } = new int[] { };
+        public int[] DaysOfWeek { get; set; } = new int[] { };
         /// <summary>
         /// 0=Sunday, 1=Mon... 6=Saturday or Empty for any
         /// </summary>
@@ -71,7 +66,7 @@ namespace TaskSchedulerEngine
             DaysOfWeek = value;
             return this;
         }
-        public int[] Hours { get; private set; } = new int[] { };
+        public int[] Hours { get; set; } = new int[] { };
         /// <summary>
         /// 0 (12am, start of the day) to 23 (11pm)
         /// </summary>
@@ -84,7 +79,7 @@ namespace TaskSchedulerEngine
             Hours = value;
             return this;
         }
-        public int[] Minutes { get; private set; } = new int[] { };
+        public int[] Minutes { get; set; } = new int[] { };
         /// <summary>
         /// 0 to 59
         /// </summary>
@@ -96,7 +91,7 @@ namespace TaskSchedulerEngine
             Minutes = value;
             return this;
         }
-        public int[] Seconds { get; private set; } = new int[] { };
+        public int[] Seconds { get; set; } = new int[] { };
         /// <summary>
         /// 0 to 59
         /// </summary>
@@ -109,7 +104,7 @@ namespace TaskSchedulerEngine
             return this;
         }
 
-        public DateTimeKind Kind { get; private set; } = DateTimeKind.Utc;
+        public DateTimeKind Kind { get; set; } = DateTimeKind.Utc;
         public ScheduleRule WithUtc()
         {
             Kind = DateTimeKind.Utc;
@@ -121,7 +116,7 @@ namespace TaskSchedulerEngine
             return this;
         }
 
-        public DateTime Expiration { get; private set; } = DateTime.MaxValue;
+        public DateTime Expiration { get; set; } = DateTime.MaxValue;
         public ScheduleRule ExpiresAfter(DateTime value)
         {
             Expiration = value;

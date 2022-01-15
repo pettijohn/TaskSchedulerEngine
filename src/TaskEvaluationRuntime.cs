@@ -49,6 +49,16 @@ namespace TaskSchedulerEngine
         /// </summary>
         private TaskEvaluationRuntimeState _runState = TaskEvaluationRuntimeState.Stopped;
         private object _lock_runState = new object();
+        public bool Stopped 
+        { 
+            get
+            {
+                lock (_lock_runState)
+                {
+                    return _runState == TaskEvaluationRuntimeState.Stopped;
+                }
+            }
+        }
 
         public Action<Exception>? UnhandledScheduledTaskException;
 

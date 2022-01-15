@@ -1,7 +1,10 @@
 # TaskSchedulerEngine
 
-A lightweight (zero dependencies, ~400 lines of code) cron-like scheduler for in-memory scheduling of your code with second-level precision. Implement IScheduledTask or provide a callback, define a ScheduleRule, and Start the runtime. 
-Schedule Rule evaluation is itself lightweight with bitwise evaluation of "now" against the rules. Targets .NET Core 3.1, .NET 5, and .NET 6. 
+A lightweight (zero dependencies, <400 lines of code) cron-like scheduler for in-memory scheduling of your code with second-level precision. 
+Implement IScheduledTask or provide a callback, define a ScheduleRule, and Start the runtime. 
+Schedule Rule evaluation is itself lightweight with bitwise evaluation of "now" against the rules (see ScheduleRuleEvaluationOptimized). 
+Each invoked SchedulesTask runs on its own thread so long running tasks won't block other tasks. 
+Targets .NET Core 3.1, .NET 5, and .NET 6. 
 
 ## Quick Start
 
@@ -14,10 +17,12 @@ static async Task Main(string[] args)
   // You may also instantiate TaskEvaluationRuntime directly.
   var host = new ServiceHost();
 
-  // Use the fluent API to define a schedule rule.
+  // Use the fluent API to define a schedule rule, or set the corresponding properties
   // Execute() accepts an IScheduledTask or Action<ScheduleRuleMatchEventArgs, CancellationToken>
   var s = new ScheduleRule()
-    .WithName("EverySecond")
+    .AtSeconds(0, 10, 20, 30, 40, 50)
+    // .AtMonths(), .AtDays(), AtDaysOfWeek() ... etc
+    .WithName("EveryTenSec") //Optional ID for your reference 
     .Execute((e, token) => {
       if(!token.IsCancellationRequested)
         Console.WriteLine("{0}: Event intended for {1:o} occured at {2:o}", e.TaskId, e.TimeScheduledUtc, e.TimeSignaledUtc);
@@ -52,6 +57,8 @@ static async Task Main(string[] args)
   * Back to Stopped.
 * RunAsync creates a background thread to evaluate rules. RequestStop requests the background thread to stop. Control is then handed back to RunAsync which waits for all running tasks to complete. Then control is returned from RunAsync to the awaiting caller. 
 
+Validation is crude, so it's possible to create rules that never fire, e.g., on day 31 of February. 
+
 ## A note on the 2010 vs 2021 versions
 
 Circa 2010, this project lived on Codeplex and ran on .NET Framework 4. An old [version 1.0.0 still lives on Nuget](https://www.nuget.org/packages/TaskSchedulerEngine/1.0.0). 
@@ -65,8 +72,9 @@ This should be considered a *new* library that happens to share a name and some 
 ## TODO
 
 - [x] Use Trace logging with a Console sink 
-- [ ] Add year to support single execution
-- [ ] Add expiration and on-start/on-stop methods. 
+- [x] Add expiration 
+- [ ] Add license header to each file
+- [ ] Move validation into setters 
 
 
 
