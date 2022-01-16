@@ -88,6 +88,13 @@ namespace TaskSchedulerEngine
             // Yield control and wait for PumpInteral's thread to end, signaled by RequestStop()
             await pumpTask;
 
+            await StopAsync();
+        }
+
+        public async Task StopAsync()
+        {
+            RequestStop();
+            
             lock (_lock_runState)
             {
                 _runState = TaskEvaluationRuntimeState.StoppingGracefully;
