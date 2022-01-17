@@ -4,6 +4,29 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Publish",
+            "command": "dotnet",
+            "type": "shell",
+            "args": [
+                "publish",
+                "-c",
+                "Release",
+                "-o",
+                "out",
+                "--framework",
+                "net6.0"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "dependsOn": "Build",
+            "dependsOrder": "sequence",
+            "problemMatcher": [
+                "$msCompile"
+            ]
+        },
+        {
             "label": "Build",
             "command": "dotnet",
             "type": "shell",
@@ -13,10 +36,6 @@
                 "/consoleloggerparameters:NoSummary",
                 "TaskSchedulerEngine.sln"
             ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
             "presentation": {
                 "reveal": "silent"
             },
