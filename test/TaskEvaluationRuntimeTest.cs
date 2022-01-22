@@ -47,7 +47,7 @@ namespace SchedulerEngineRuntimeTests
             bool executed = false;
             var runtime = new TaskEvaluationRuntime();
             runtime.AddSchedule(new ScheduleRule()
-                .ExpiresAfter(DateTime.Now.AddDays(-1))
+                .ExpiresAfter(DateTimeOffset.Now.AddDays(-1))
                 .Execute((e, token) => {
                     executed = true;
                     return true;
@@ -102,8 +102,8 @@ namespace SchedulerEngineRuntimeTests
         [TestMethod]
         public void ExponentialBackoffTaskTest()
         {
-            var invoked = new List<DateTime>();
-            var startFrom = DateTime.UtcNow.AddSeconds(1);
+            var invoked = new List<DateTimeOffset>();
+            var startFrom = DateTimeOffset.UtcNow.AddSeconds(1);
             var runtime = new TaskEvaluationRuntime();
             runtime.AddSchedule(new ScheduleRule()
                 .ExecuteOnce(startFrom)

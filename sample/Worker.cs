@@ -60,7 +60,7 @@ public class Worker : BackgroundService
 
         // Retry a task with exponential backoff. 
         Runtime.AddSchedule(new ScheduleRule()
-            .ExecuteOnce(DateTime.UtcNow.AddSeconds(2))
+            .ExecuteOnce(DateTimeOffset.UtcNow.AddSeconds(2))
             .Execute(new ExponentialBackoffTask((_, _) =>
             {
                 // Do something that may fail like make a network call.

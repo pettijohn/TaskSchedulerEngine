@@ -33,7 +33,7 @@ namespace TaskSchedulerEngine
         /// crossing the year boundary between local time and UTC. Not hard coding a value so that it will increment
         /// without being recompiled forever. 
         /// </summary>
-        internal static readonly int MinYear = DateTime.Now.Year - 1;
+        internal static readonly int MinYear = DateTimeOffset.Now.Year - 1;
         public int[] Years { get; set; } = new int[] { };
 
         public ScheduleRule AtYears(params int[] value)
@@ -135,7 +135,7 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Execute once at the floor of the second specified. Shorthand for setting Year, Month, DayOfMonth, Second, and Expiration.
         /// </summary>
-        public ScheduleRule ExecuteOnce(DateTime time)
+        public ScheduleRule ExecuteOnce(DateTimeOffset time)
         {
             return this.AtYears(time.Year)
                 .AtMonths(time.Month)
@@ -144,13 +144,13 @@ namespace TaskSchedulerEngine
                 .ExpiresAfter(time.AddMinutes(1));
         }
 
-        public DateTime Expiration { get; set; } = DateTime.MaxValue;
+        public DateTimeOffset Expiration { get; set; } = DateTimeOffset.MaxValue;
         /// <summary>
         /// Time after which the task shall be deleted from the scheduler. 
         /// If not deleted, ongoing added schedules (e.g. in retry scenario) will live forever
         /// and memory leak. 
         /// </summary>
-        public ScheduleRule ExpiresAfter(DateTime value)
+        public ScheduleRule ExpiresAfter(DateTimeOffset value)
         {
             Expiration = value;
             return this;

@@ -63,7 +63,7 @@ namespace SchedulerEngineRuntimeTests
 
             var evalOptimized = new ScheduleEvaluationOptimized(rule);
 
-            var evalTime = new DateTime(2022, 11, 30, 23, 0, 0, DateTimeKind.Utc);
+            var evalTime = new DateTimeOffset(2022, 11, 30, 23, 0, 0, TimeSpan.Zero);
 
             var testResult = evalOptimized.EvaluateRuleMatch(evalTime);
             Assert.IsTrue(testResult);
@@ -72,7 +72,7 @@ namespace SchedulerEngineRuntimeTests
         [TestMethod]
         public void ExecuteOnceTest()
         {
-            var executeTime = new DateTime(2022, 11, 30, 23, 0, 0, DateTimeKind.Utc);
+            var executeTime = new DateTimeOffset(2022, 11, 30, 23, 0, 0, TimeSpan.Zero);
             var rule = new ScheduleRule()
                 .ExecuteOnce(executeTime)
                 .WithName("Optional name/ID parameter")

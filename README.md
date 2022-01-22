@@ -29,11 +29,11 @@ static async Task Main(string[] args)
     });
 
   var s2 = new ScheduleRule()
-    .ExecuteOnce(DateTime.UtcNow.AddSeconds(5))
+    .ExecuteOnce(DateTimeOffset.UtcNow.AddSeconds(5))
     .Execute((_, _) => { Console.WriteLine("Use ExecuteOnce to run this task in 5 seconds. Useful for retry scenarios."); return true; });
 
   var s3 = new ScheduleRule()
-    .ExecuteOnce(DateTime.UtcNow.AddSeconds(1))
+    .ExecuteOnce(DateTimeOffset.UtcNow.AddSeconds(1))
     .Execute(new ExponentialBackoffTask(
       (e, _) => { 
           // Do something that may fail like a network call - catch & gracefully fail by returning false.
@@ -86,8 +86,8 @@ Validation is crude, so it's possible to create rules that never fire, e.g., on 
 ## A note on the 2010 vs 2021 versions
 
 Circa 2010, this project lived on Codeplex and ran on .NET Framework 4. An old [version 1.0.0 still lives on Nuget](https://www.nuget.org/packages/TaskSchedulerEngine/1.0.0). 
-The 2021 edition of this project runs on .NET Core 3.1. A lot has changed in the intervening years, namely how multithreaded programming
-is accomplished in .NET (async/await didn't launch until C# 5.0 in 2012). While upgrading to dotnet core, I simplified the code, the end result being:
+The 2021 edition of this project runs on .NET Core 3.1 and .NET 6. A lot has changed in the intervening years, namely how multithreaded programming
+is accomplished in .NET (async/await didn't launch until C# 5.0 in 2012). While upgrading .NET 6, I simplified the code, the end result being:
 this library is incompatible with the 2010 version. While the core logic and the fluent API remain very similar, the 
 class names are incompatible, ITask has changed, and some of the multithreading behaviors are different. 
 This should be considered a *new* library that happens to share a name and some roots with the old one. 

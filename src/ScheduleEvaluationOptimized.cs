@@ -117,29 +117,29 @@ namespace TaskSchedulerEngine
         public DateTimeKind Kind { get; set; }
 
         /// <summary>
-        /// Compare the provided DateTime to the schedule definition. If the event should occur,
+        /// Compare the provided DateTimeOffset to the schedule definition. If the event should occur,
         /// this will return a <see cref="ScheduleRuleMatchEventArgs"/> for passing to the callback, 
         /// else it will return null.
         /// </summary>
-        /// <param name="DateTime">In UTC</param>
+        /// <param name="DateTimeOffset">In UTC</param>
         /// <returns></returns>
-        public bool EvaluateRuleMatch(DateTime inputValueUtc)
+        public bool EvaluateRuleMatch(DateTimeOffset timeToEvaluateUtc)
         {
             //The inputValue is in UTC, but the rule supports comparing in Local time.
             //Determine which we want to compare and save it as compareValue.
-            DateTime compareValue = Kind == DateTimeKind.Local ? compareValue = inputValueUtc.ToLocalTime() : compareValue = inputValueUtc;
+            DateTimeOffset timeToEvaluate = Kind == DateTimeKind.Local ? timeToEvaluateUtc.ToLocalTime() : timeToEvaluateUtc;
             
-            if(compareValue.Year - ScheduleRule.MinYear < 0) throw new OverflowException("Error evaluating Year paramater in the past.");
+            if(timeToEvaluate.Year - ScheduleRule.MinYear < 0) throw new OverflowException("Error evaluating Year paramater in the past.");
 
             //Perform a bitwise AND on the compareValue and this. If the result is non-zero, then there is a match.
             //1 << x is the same as 2^^x, just faster since it's not a floating point op.
-            return (((1L << (compareValue.Year - ScheduleRule.MinYear) & this.Year) != 0)
-                && ((1L << compareValue.Month & this.Month) != 0)
-                && ((1L << compareValue.Day & this.DayOfMonth) != 0)
-                && ((1L << (int)compareValue.DayOfWeek & this.DayOfWeek) != 0)
-                && ((1L << compareValue.Hour & this.Hour) != 0)
-                && ((1L << compareValue.Minute & this.Minute) != 0)
-                && ((1L << compareValue.Second & this.Second) != 0));
+            return (((1L << (timeToEvaluate.Year - ScheduleRule.MinYear) & this.Year) != 0)
+                && ((1L << timeToEvaluate.Month & this.Month) != 0)
+                && ((1L << timeToEvaluate.Day & this.DayOfMonth) != 0)
+                && ((1L << (int)timeToEvaluate.DayOfWeek & this.DayOfWeek) != 0)
+                && ((1L << timeToEvaluate.Hour & this.Hour) != 0)
+                && ((1L << timeToEvaluate.Minute & this.Minute) != 0)
+                && ((1L << timeToEvaluate.Second & this.Second) != 0));
         }
 
     }

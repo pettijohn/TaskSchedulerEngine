@@ -41,7 +41,7 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Hang onto the next second to evaluate. Thread-safe.
         /// </summary>
-        private DateTime _nextSecondToEvaluate = DateTime.Now;
+        private DateTimeOffset _nextSecondToEvaluate = DateTimeOffset.Now;
         private object _lock_nextSecondToEvaluate = new object();
 
         /// <summary>
@@ -143,8 +143,8 @@ namespace TaskSchedulerEngine
 
             //Compute the floor of the current second.
             //There are 10,000,000 ticks per second. Subtract the remainder from now.
-            DateTime utcNow = DateTime.UtcNow;
-            DateTime utcNowFloor = new DateTime(utcNow.Ticks - (utcNow.Ticks % 10000000));
+            DateTimeOffset utcNow = DateTimeOffset.UtcNow;
+            DateTimeOffset utcNowFloor = new DateTimeOffset(utcNow.Ticks - (utcNow.Ticks % 10000000), TimeSpan.Zero);
 
             //Compute the floor of the next second, and save it as the nextSecondToEvaluate
             lock (_lock_nextSecondToEvaluate)
@@ -172,7 +172,7 @@ namespace TaskSchedulerEngine
                     //In the general case, timeUntilNextEvaluation will be less than one second in the future.
                     lock (_lock_nextSecondToEvaluate)
                     {
-                        utcNow = DateTime.UtcNow;
+                        utcNow = DateTimeOffset.UtcNow;
                         timeUntilNextEvaluation = _nextSecondToEvaluate - utcNow;
                     }
 
@@ -212,7 +212,7 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Evaluate all of the rules in the schedule and see if they match the specified second. If it matches, spin it off on a new thread. 
         /// </summary>
-        private int Evaluate(DateTime secondToEvaluate)
+        private int Evaluate(DateTimeOffset secondToEvaluate)
         {
             //TODO : convert secondToEvaluate to a faster format and avoid the extra bit-shifts downstream.
             int i = 0;
@@ -231,7 +231,7 @@ namespace TaskSchedulerEngine
                 if (match)
                 {
                     var eventArgs = new ScheduleRuleMatchEventArgs(
-                        DateTime.UtcNow,
+                        DateTimeOffset.UtcNow,
                         secondToEvaluate,
                         Interlocked.Increment(ref TaskEvaluationRuntime.TaskID),
                         scheduleItem.Key,

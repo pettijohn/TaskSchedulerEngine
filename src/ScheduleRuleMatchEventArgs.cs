@@ -10,7 +10,7 @@ namespace TaskSchedulerEngine
     public class ScheduleRuleMatchEventArgs : EventArgs
     {
         public ScheduleRuleMatchEventArgs(
-            DateTime timeSignaledUtc, DateTime timeScheduledUtc, long taskId, 
+            DateTimeOffset timeSignaledUtc, DateTimeOffset timeScheduledUtc, long taskId, 
             ScheduleRule scheduleRule, TaskEvaluationRuntime runtime
         )
         {
@@ -20,8 +20,8 @@ namespace TaskSchedulerEngine
             ScheduleRule = scheduleRule;
             Runtime = runtime;
         }
-        public DateTime TimeSignaledUtc { get; private set; }
-        public DateTime TimeScheduledUtc { get; private set; }
+        public DateTimeOffset TimeSignaledUtc { get; private set; }
+        public DateTimeOffset TimeScheduledUtc { get; private set; }
         public long TaskId { get; set; }
         public ScheduleRule ScheduleRule { get; private set; }
         public TaskEvaluationRuntime Runtime { get; internal set; }
