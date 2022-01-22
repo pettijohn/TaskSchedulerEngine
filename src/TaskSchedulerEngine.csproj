@@ -3,7 +3,7 @@
     <TargetFrameworks>netcoreapp3.1;net6.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <PackageId>TaskSchedulerEngine</PackageId>
-    <Version>22.03.11.11</Version>
+    <Version>22.03.13.56</Version>
     <Authors>github.com/pettijohn/TaskSchedulerEngine</Authors>
   </PropertyGroup>
 </Project>

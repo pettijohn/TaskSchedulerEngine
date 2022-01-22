@@ -71,8 +71,7 @@ static async Task Main(string[] args)
 
 ## Runtime Lifecycle
 
-* Create a ServiceHost, await RunAsync, and you are guaranteed graceful shutdown.
-* The ServiceHost is a helper that owns a TaskEvaluationRuntime. If you want to own the lifecycle, you may instantiate TaskEvaluationRuntime directly and use RunAsync() and RequestStop() for start and graceful shutdown.
+* Instantiate TaskEvaluationRuntime and use RunAsync(), optionally RequestStop(), and StopAsync() for start and graceful shutdown.
 * TaskEvaluationRuntime moves through four states: 
   * Stopped: nothing happening, can Start back into a running state.
   * Running: evaluating every second
@@ -81,7 +80,7 @@ static async Task Main(string[] args)
   * Back to Stopped.
 * RunAsync creates a background thread to evaluate rules. RequestStop requests the background thread to stop. Control is then handed back to RunAsync which waits for all running tasks to complete. Then control is returned from RunAsync to the awaiting caller. 
 
-Validation is crude, so it's possible to create rules that never fire, e.g., on day 31 of February. 
+Validation is basic, so it's possible to create rules that never fire, e.g., on day 31 of February. 
 
 ## A note on the 2010 vs 2021 versions
 
