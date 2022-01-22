@@ -13,9 +13,8 @@ See `sample/` in source tree for more detailed examples.
 ```C#
 static async Task Main(string[] args)
 {
-  // Service Host is a helper to listen to AppDomain.ProcessExit and CTRL+C.
-  // You may also instantiate TaskEvaluationRuntime directly.
-  var host = new ServiceHost();
+  // Instantiate TaskEvaluationRuntime.
+  var runtime = new TaskEvaluationRuntime();
 
   // Use the fluent API to define a schedule rule, or set the corresponding properties
   // Execute() accepts an IScheduledTask or Action<ScheduleRuleMatchEventArgs, CancellationToken>
@@ -39,7 +38,6 @@ static async Task Main(string[] args)
       (e, _) => { 
           // Do something that may fail like a network call - catch & gracefully fail by returning false.
           // Exponential backoff task will retry up to MaxAttempts times. 
-          invoked.Add(e.TimeScheduledUtc);
           return false; 
       },
       4, // MaxAttempts
@@ -49,14 +47,18 @@ static async Task Main(string[] args)
     ));
 
   // Add the schedules to the runtime.
-  host.Runtime.AddSchedule(s1);
-  host.Runtime.AddSchedule(s2);
-  host.Runtime.AddSchedule(s3);
+  runtime.AddSchedule(s1);
+  runtime.AddSchedule(s2);
+  runtime.AddSchedule(s3);
   
-  Console.WriteLine("Press CTRL+C to quit.");
-
   // Await the runtime.
-  await host.Runtime.RunAsync();
+  await runtime.RunAsync();
+
+  // Listen for some signal to quit
+  Thread.Sleep(30000);
+  
+  // Graceful shutdown. Request a stop and await running tasks.
+  await runtime.StopAsync();
 }
 ```
 
