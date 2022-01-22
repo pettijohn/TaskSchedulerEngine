@@ -1,3 +1,9 @@
+/* 
+ * Task Scheduler Engine
+ * Released under the BSD License
+ * https://github.com/pettijohn/TaskSchedulerEngine
+ */
+
 using TaskSchedulerEngine;
 
 namespace sample;

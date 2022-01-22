@@ -3,8 +3,8 @@
 A lightweight (zero dependencies, <400 lines of code) cron-like scheduler for in-memory scheduling of your code with second-level precision. 
 Implement IScheduledTask or provide a callback, define a ScheduleRule, and Start the runtime. 
 Schedule Rule evaluation is itself lightweight with bitwise evaluation of "now" against the rules (see ScheduleRuleEvaluationOptimized). 
-Each invoked SchedulesTask runs on its own thread so long running tasks won't block other tasks. 
-Targets .NET Core 3.1, .NET 5, and .NET 6. 
+Each invoked ScheduledTask runs on its own thread so long running tasks won't block other tasks. 
+Targets .NET Core 3.1, .NET 6 (and presumably everything in between).
 
 ## Quick Start
 
@@ -91,14 +91,3 @@ is accomplished in .NET (async/await didn't launch until C# 5.0 in 2012). While 
 this library is incompatible with the 2010 version. While the core logic and the fluent API remain very similar, the 
 class names are incompatible, ITask has changed, and some of the multithreading behaviors are different. 
 This should be considered a *new* library that happens to share a name and some roots with the old one. 
-
-
-## TODO
-
-- [x] Use Trace logging with a Console sink 
-- [x] Add expiration 
-- [ ] Add license header to each file
-- [ ] Move validation into setters 
-
-
-

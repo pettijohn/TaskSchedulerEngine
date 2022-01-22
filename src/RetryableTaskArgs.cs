@@ -1,5 +1,9 @@
+/* 
+ * Task Scheduler Engine
+ * Released under the BSD License
+ * https://github.com/pettijohn/TaskSchedulerEngine
+ */
 using System;
-using System.Threading;
 
 namespace TaskSchedulerEngine
 {
