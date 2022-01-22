@@ -21,6 +21,7 @@ namespace TaskSchedulerEngine
                 throw new ArgumentNullException("ScheduleRule must have a Task, set it with Execute()");
 
             this.Name = sched.Name;
+            this.Year = ParseIntArrayToBitfield(sched.Years.Select(y => y - ScheduleRule.MinYear));
             this.Month = ParseIntArrayToBitfield(sched.Months);
             this.DayOfMonth = ParseIntArrayToBitfield(sched.DaysOfMonth);
             this.DayOfWeek = ParseIntArrayToBitfield(sched.DaysOfWeek);
@@ -103,6 +104,10 @@ namespace TaskSchedulerEngine
         /// Primary key of the schedule. 
         /// </summary>
         public string? Name { get; set; }
+        /// <summary>
+        /// Bitfield represents years since ScheduleRule.MinYear
+        /// </summary>
+        public long Year { get; set; }
         public long Month { get; set; }
         public long DayOfMonth { get; set; }
         public long DayOfWeek { get; set; }
@@ -124,14 +129,17 @@ namespace TaskSchedulerEngine
             //Determine which we want to compare and save it as compareValue.
             DateTime compareValue = Kind == DateTimeKind.Local ? compareValue = inputValueUtc.ToLocalTime() : compareValue = inputValueUtc;
             
+            if(compareValue.Year - ScheduleRule.MinYear < 0) throw new OverflowException("Error evaluating Year paramater in the past.");
+
             //Perform a bitwise AND on the compareValue and this. If the result is non-zero, then there is a match.
             //1 << x is the same as 2^^x, just faster since it's not a floating point op.
-            return ((1L << compareValue.Month & this.Month) != 0)
+            return (((1L << (compareValue.Year - ScheduleRule.MinYear) & this.Year) != 0)
+                && ((1L << compareValue.Month & this.Month) != 0)
                 && ((1L << compareValue.Day & this.DayOfMonth) != 0)
                 && ((1L << (int)compareValue.DayOfWeek & this.DayOfWeek) != 0)
                 && ((1L << compareValue.Hour & this.Hour) != 0)
                 && ((1L << compareValue.Minute & this.Minute) != 0)
-                && ((1L << compareValue.Second & this.Second) != 0);
+                && ((1L << compareValue.Second & this.Second) != 0));
         }
 
     }

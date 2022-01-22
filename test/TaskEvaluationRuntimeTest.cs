@@ -30,6 +30,7 @@ namespace SchedulerEngineRuntimeTests
                 .Execute((e, token) => {
                     callbackThread = System.Threading.Thread.CurrentThread.ManagedThreadId;
                     e.Runtime.DeleteSchedule(e.ScheduleRule);
+                    return true;
                 }));
 
             var task = runtime.RunAsync();
@@ -49,6 +50,7 @@ namespace SchedulerEngineRuntimeTests
                 .ExpiresAfter(DateTime.Now.AddDays(-1))
                 .Execute((e, token) => {
                     executed = true;
+                    return true;
                 }));
 
             var task = runtime.RunAsync();
@@ -74,6 +76,7 @@ namespace SchedulerEngineRuntimeTests
                     e.Runtime.DeleteSchedule(e.ScheduleRule);
                     Thread.Sleep(3000);
                     gracefulShutdown1 = true;
+                    return true;
                 }));
 
             runtime.AddSchedule(new ScheduleRule()
@@ -82,6 +85,7 @@ namespace SchedulerEngineRuntimeTests
                     e.Runtime.DeleteSchedule(e.ScheduleRule);
                     Thread.Sleep(3000);
                     gracefulShutdown2 = true;
+                    return true;
                 }));
 
             var task = runtime.RunAsync();
@@ -93,6 +97,47 @@ namespace SchedulerEngineRuntimeTests
             Assert.IsTrue(executed2);
             Assert.IsTrue(gracefulShutdown1);
             Assert.IsTrue(gracefulShutdown2);
+        }
+
+        [TestMethod]
+        public void ExponentialBackoffTaskTest()
+        {
+            var invoked = new List<DateTime>();
+            var startFrom = DateTime.UtcNow.AddSeconds(1);
+            var runtime = new TaskEvaluationRuntime();
+            runtime.AddSchedule(new ScheduleRule()
+                .ExecuteOnce(startFrom)
+                .Execute(new ExponentialBackoffTask(
+                    (e, _) => { 
+                        // Do something that may fail like a network call - catch & gracefully fail by returning false.
+                        // Exponential backoff task will retry up to maxAttempts times. 
+                        invoked.Add(e.TimeScheduledUtc);
+                        return false; 
+                    },
+                    4, // max attempts
+                    2  // base retry interval
+                )));
+            
+            // Retry logic: baseRetrySeconds*(2^retryCount) seconds
+            // Task should execute at 0, 2, 4, 8 second intervals  
+
+            var task = runtime.RunAsync();
+            Thread.Sleep(40000); // wait for retries - long enough for an incorrect fifth invocation. 
+            runtime.RequestStop();
+            task.Wait();
+
+            Console.WriteLine(startFrom);
+            for (int i = 0; i < invoked.Count; i++)
+            {
+                Console.WriteLine($"{i}: {(invoked[i] - invoked[0]).TotalSeconds}");
+            }
+
+            Assert.AreEqual(4, invoked.Count);
+            CollectionAssert.AllItemsAreUnique(invoked);
+            // Should be about 14 seconds between first and last - with a little wiggle room 
+            var span = invoked.Last() - invoked.First();
+            Console.WriteLine($"Retry total duration: {span.TotalSeconds}");
+            Assert.IsTrue(span > TimeSpan.FromSeconds(12) && span < TimeSpan.FromSeconds(16));
         }
 
     }

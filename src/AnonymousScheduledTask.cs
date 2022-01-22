@@ -7,15 +7,15 @@ using TaskSchedulerEngine;
 /// </summary>
 internal class AnonymousScheduledTask : IScheduledTask
 {
-    public AnonymousScheduledTask(Action<ScheduleRuleMatchEventArgs, CancellationToken> callback)
+    public AnonymousScheduledTask(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback)
     {
         Callback = callback;
     }
 
-    public Action<ScheduleRuleMatchEventArgs, CancellationToken> Callback { get; set; }
+    public Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> Callback { get; set; }
 
-    public void OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken c)
+    public bool OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken c)
     {
-        Callback(e, c);
+        return Callback(e, c);
     }
 }

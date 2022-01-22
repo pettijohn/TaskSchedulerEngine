@@ -19,17 +19,39 @@ static async Task Main(string[] args)
 
   // Use the fluent API to define a schedule rule, or set the corresponding properties
   // Execute() accepts an IScheduledTask or Action<ScheduleRuleMatchEventArgs, CancellationToken>
-  var s = new ScheduleRule()
+  var s1 = new ScheduleRule()
     .AtSeconds(0, 10, 20, 30, 40, 50)
     // .AtMonths(), .AtDays(), AtDaysOfWeek() ... etc
     .WithName("EveryTenSec") //Optional ID for your reference 
     .Execute((e, token) => {
       if(!token.IsCancellationRequested)
-        Console.WriteLine("{0}: Event intended for {1:o} occured at {2:o}", e.TaskId, e.TimeScheduledUtc, e.TimeSignaledUtc);
+        Console.WriteLine($"{e.TaskId}: Event intended for {e.TimeScheduledUtc:o} occured at {e.TimeScheduledUtc:o}");
+        return true; // Return success. Used by retry scenarios. 
     });
 
-  // Add that schedule to the runtime.
-  host.Runtime.AddSchedule(s);
+  var s2 = new ScheduleRule()
+    .ExecuteOnce(DateTime.UtcNow.AddSeconds(5))
+    .Execute((_, _) => { Console.WriteLine("Use ExecuteOnce to run this task in 5 seconds. Useful for retry scenarios."); return true; });
+
+  var s3 = new ScheduleRule()
+    .ExecuteOnce(DateTime.UtcNow.AddSeconds(1))
+    .Execute(new ExponentialBackoffTask(
+      (e, _) => { 
+          // Do something that may fail like a network call - catch & gracefully fail by returning false.
+          // Exponential backoff task will retry up to MaxAttempts times. 
+          invoked.Add(e.TimeScheduledUtc);
+          return false; 
+      },
+      4, // MaxAttempts
+      2  // BaseRetryIntervalSeconds
+         // Retry delay logic: baseRetrySeconds * (2^retryCount) 
+         // In this case will retry after 0, 2, 4, 8 second intervals  
+    ));
+
+  // Add the schedules to the runtime.
+  host.Runtime.AddSchedule(s1);
+  host.Runtime.AddSchedule(s2);
+  host.Runtime.AddSchedule(s3);
   
   Console.WriteLine("Press CTRL+C to quit.");
 

@@ -53,19 +53,45 @@ namespace SchedulerEngineRuntimeTests
                 .AtHours(0, 23)
                 .AtMinutes(0)
                 .AtSeconds(0)
-                .AtDaysOfWeek(2)
+                .AtDaysOfWeek(3)
                 .AtDaysOfMonth(30)
                 .AtMonths(11)
+                .AtYears(2022)
                 .WithName("Optional name/ID parameter")
                 .WithUtc()
-                .Execute((e, c) => {}); //noop callback, as callback cannot be null
+                .Execute((e, c) => { return true; }); //noop callback, as callback cannot be null
 
             var evalOptimized = new ScheduleEvaluationOptimized(rule);
 
-            var evalTime = new DateTime(2021, 11, 30, 23, 0, 0, DateTimeKind.Utc);
+            var evalTime = new DateTime(2022, 11, 30, 23, 0, 0, DateTimeKind.Utc);
 
             var testResult = evalOptimized.EvaluateRuleMatch(evalTime);
             Assert.IsTrue(testResult);
+        }
+
+        [TestMethod]
+        public void ExecuteOnceTest()
+        {
+            var executeTime = new DateTime(2022, 11, 30, 23, 0, 0, DateTimeKind.Utc);
+            var rule = new ScheduleRule()
+                .ExecuteOnce(executeTime)
+                .WithName("Optional name/ID parameter")
+                .WithUtc()
+                .Execute((e, c) => { return true; }); //noop callback, as callback cannot be null
+
+            var evalOptimized = new ScheduleEvaluationOptimized(rule);
+
+            var evalTime = executeTime;
+
+            var testResult = evalOptimized.EvaluateRuleMatch(evalTime);
+            Assert.IsTrue(testResult);
+
+            testResult = evalOptimized.EvaluateRuleMatch(evalTime.AddSeconds(1));
+            Assert.IsFalse(testResult);
+            testResult = evalOptimized.EvaluateRuleMatch(evalTime.AddSeconds(-1));
+            Assert.IsFalse(testResult);
+            testResult = evalOptimized.EvaluateRuleMatch(evalTime.AddYears(1));
+            Assert.IsFalse(testResult);
         }
 
         [TestMethod]

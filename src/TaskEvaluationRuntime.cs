@@ -219,9 +219,11 @@ namespace TaskSchedulerEngine
             
             foreach (KeyValuePair<ScheduleRule, ScheduleEvaluationOptimized> scheduleItem in _schedule)
             {
-                //Check for expired schedules 
+                //Check for & delete expired schedules 
                 if(secondToEvaluate > scheduleItem.Key.Expiration)
                 {
+                    // Is this safe? 
+                    _schedule.Remove(scheduleItem.Key, out _);
                     continue;
                 }
 

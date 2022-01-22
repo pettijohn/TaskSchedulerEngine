@@ -28,6 +28,22 @@ namespace TaskSchedulerEngine
             return this;
         }
 
+        /// <summary>
+        /// Set the floor of the year to last year. Not using this year because there's probably some edge case
+        /// crossing the year boundary between local time and UTC. Not hard coding a value so that it will increment
+        /// without being recompiled forever. 
+        /// </summary>
+        internal static readonly int MinYear = DateTime.Now.Year - 1;
+        public int[] Years { get; set; } = new int[] { };
+
+        public ScheduleRule AtYears(params int[] value)
+        {
+            if(value.Where(v => v < MinYear || v > (MinYear+62)).Count() > 0)
+                throw new ArgumentOutOfRangeException($"Year must be between {MinYear} and {MinYear+62}.");
+            Years = value;
+            return this;
+        }
+
         public int[] Months { get; set; } = new int[] { };
 
         /// <summary>
@@ -116,7 +132,24 @@ namespace TaskSchedulerEngine
             return this;
         }
 
+        /// <summary>
+        /// Execute once at the floor of the second specified. Shorthand for setting Year, Month, DayOfMonth, Second, and Expiration.
+        /// </summary>
+        public ScheduleRule ExecuteOnce(DateTime time)
+        {
+            return this.AtYears(time.Year)
+                .AtMonths(time.Month)
+                .AtDaysOfMonth(time.Day)
+                .AtSeconds(time.Second)
+                .ExpiresAfter(time.AddMinutes(1));
+        }
+
         public DateTime Expiration { get; set; } = DateTime.MaxValue;
+        /// <summary>
+        /// Time after which the task shall be deleted from the scheduler. 
+        /// If not deleted, ongoing added schedules (e.g. in retry scenario) will live forever
+        /// and memory leak. 
+        /// </summary>
         public ScheduleRule ExpiresAfter(DateTime value)
         {
             Expiration = value;
@@ -125,7 +158,7 @@ namespace TaskSchedulerEngine
 
         public IScheduledTask? Task { get; set; }
 
-        public ScheduleRule Execute(Action<ScheduleRuleMatchEventArgs, CancellationToken> callback)
+        public ScheduleRule Execute(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback)
         {
             Task = new AnonymousScheduledTask(callback);
             return this;

@@ -11,7 +11,7 @@ namespace TaskSchedulerEngine
     {
         public ScheduleRuleMatchEventArgs(
             DateTime timeSignaledUtc, DateTime timeScheduledUtc, long taskId, 
-            ScheduleRule scheduleRule, TaskEvaluationRuntime? runtime
+            ScheduleRule scheduleRule, TaskEvaluationRuntime runtime
         )
         {
             TimeSignaledUtc = timeSignaledUtc;
@@ -24,6 +24,6 @@ namespace TaskSchedulerEngine
         public DateTime TimeScheduledUtc { get; private set; }
         public long TaskId { get; set; }
         public ScheduleRule ScheduleRule { get; private set; }
-        public TaskEvaluationRuntime? Runtime { get; internal set; }
+        public TaskEvaluationRuntime Runtime { get; internal set; }
     }
 }
