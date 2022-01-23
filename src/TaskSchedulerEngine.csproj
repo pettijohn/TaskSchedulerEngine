@@ -3,7 +3,15 @@
     <TargetFrameworks>netcoreapp3.1;net6.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <PackageId>TaskSchedulerEngine</PackageId>
-    <Version>22.03.13.56</Version>
-    <Authors>github.com/pettijohn/TaskSchedulerEngine</Authors>
+    <Title>TaskSchedulerEngine</Title>
+    <PackageVersion>22.03.13.42</PackageVersion>
+    <Authors>Travis Pettijohn</Authors>
+    <Copyright>Travis Pettijohn</Copyright>
+    <Description>A lightweight cron-like scheduler for in-memory scheduling of your code with second-level precision.</Description>
+    <Summary>A lightweight cron-like scheduler for in-memory scheduling of your code with second-level precision.</Summary>
+    <PackageLicenseExpression>BSD-3-Clause</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/pettijohn/TaskSchedulerEngine</PackageProjectUrl>
+    <RepositoryURL>https://github.com/pettijohn/TaskSchedulerEngine.git</RepositoryURL>
+    <PackageTags>scheduler cron task</PackageTags>
   </PropertyGroup>
 </Project>

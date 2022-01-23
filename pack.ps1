@@ -2,7 +2,7 @@
 $versionNum = get-date -UFormat %y.%V.%H.%M
 $projPath = ".\src\TaskSchedulerEngine.csproj"
 $csproj = [xml] (get-content $projPath)
-$csproj.Project.PropertyGroup.Version = $versionNum
+$csproj.Project.PropertyGroup.PackageVersion = $versionNum
 $csProj.Save($projPath)
 
 dotnet pack -c Release -o .\out\

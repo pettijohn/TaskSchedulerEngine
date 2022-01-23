@@ -10,6 +10,12 @@ Targets .NET Core 3.1, .NET 6 (and presumably everything in between).
 
 See `sample/` in source tree for more detailed examples.
 
+`dotnet add package TaskSchedulerEngine`
+
+Nuget link: https://www.nuget.org/packages/TaskSchedulerEngine/
+
+Version number scheme is (two digit year).(week number).(hour).(minute).
+
 ```C#
 static async Task Main(string[] args)
 {
