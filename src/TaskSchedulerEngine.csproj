@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable>
     <PackageId>TaskSchedulerEngine</PackageId>
     <Title>TaskSchedulerEngine</Title>
-    <PackageVersion>22.024.14.01</PackageVersion>
+    <PackageVersion>22.024.14.52</PackageVersion>
     <Authors>Travis Pettijohn</Authors>
     <Copyright>Travis Pettijohn</Copyright>
     <Description>A lightweight cron-like scheduler for in-memory scheduling of your code with second-level precision.</Description>
@@ -14,4 +14,9 @@
     <RepositoryURL>https://github.com/pettijohn/TaskSchedulerEngine.git</RepositoryURL>
     <PackageTags>scheduler cron task</PackageTags>
   </PropertyGroup>
+  <ItemGroup>
+    <Content Include="..\*.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>
