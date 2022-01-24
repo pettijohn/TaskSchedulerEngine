@@ -14,7 +14,7 @@ See `sample/` in source tree for more detailed examples.
 
 Nuget link: https://www.nuget.org/packages/TaskSchedulerEngine/
 
-Version number scheme is (two digit year).(week number).(hour).(minute).
+Version number scheme is (two digit year).(day of year).(hour).(minute).
 
 ```C#
 static async Task Main(string[] args)
