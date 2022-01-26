@@ -106,7 +106,7 @@ namespace SchedulerEngineRuntimeTests
             var startFrom = DateTimeOffset.UtcNow.AddSeconds(1);
             var runtime = new TaskEvaluationRuntime();
             runtime.AddSchedule(new ScheduleRule()
-                .ExecuteOnce(startFrom)
+                .ExecuteOnceAt(startFrom)
                 .Execute(new ExponentialBackoffTask(
                     (e, _) => { 
                         // Do something that may fail like a network call - catch & gracefully fail by returning false.

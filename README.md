@@ -23,7 +23,7 @@ static async Task Main(string[] args)
   var runtime = new TaskEvaluationRuntime();
 
   // Use the fluent API to define a schedule rule, or set the corresponding properties
-  // Execute() accepts an IScheduledTask or Action<ScheduleRuleMatchEventArgs, CancellationToken>
+  // Execute() accepts an IScheduledTask or Action<ScheduleRuleMatchEventArgs, CancellationToken, bool>
   var s1 = new ScheduleRule()
     .AtSeconds(0, 10, 20, 30, 40, 50)
     // .AtMonths(), .AtDays(), AtDaysOfWeek() ... etc
@@ -35,12 +35,12 @@ static async Task Main(string[] args)
     });
 
   var s2 = new ScheduleRule()
-    .ExecuteOnce(DateTimeOffset.UtcNow.AddSeconds(5))
-    .Execute((_, _) => { Console.WriteLine("Use ExecuteOnce to run this task in 5 seconds. Useful for retry scenarios."); return true; });
+    .ExecuteOnceAt(DateTimeOffset.UtcNow.AddSeconds(5))
+    .Execute((_, _) => { Console.WriteLine("Use ExecuteOnceAt to run this task in 5 seconds. Useful for retry scenarios."); return true; });
 
   var s3 = new ScheduleRule()
-    .ExecuteOnce(DateTimeOffset.UtcNow.AddSeconds(1))
-    .Execute(new ExponentialBackoffTask(
+    .ExecuteOnceAt(DateTimeOffset.UtcNow.AddSeconds(1))
+    .ExecuteAndRetry(
       (e, _) => { 
           // Do something that may fail like a network call - catch & gracefully fail by returning false.
           // Exponential backoff task will retry up to MaxAttempts times. 
@@ -49,8 +49,8 @@ static async Task Main(string[] args)
       4, // MaxAttempts
       2  // BaseRetryIntervalSeconds
          // Retry delay logic: baseRetrySeconds * (2^retryCount) 
-         // In this case will retry after 0, 2, 4, 8 second intervals  
-    ));
+         // In this case will retry after 2, 4, 8 second waits
+    );
 
   // Add the schedules to the runtime.
   runtime.AddSchedule(s1);

@@ -74,7 +74,7 @@ namespace SchedulerEngineRuntimeTests
         {
             var executeTime = new DateTimeOffset(2022, 11, 30, 23, 0, 0, TimeSpan.Zero);
             var rule = new ScheduleRule()
-                .ExecuteOnce(executeTime)
+                .ExecuteOnceAt(executeTime)
                 .WithName("Optional name/ID parameter")
                 .WithUtc()
                 .Execute((e, c) => { return true; }); //noop callback, as callback cannot be null

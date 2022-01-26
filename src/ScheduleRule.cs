@@ -135,12 +135,14 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Execute once at the floor of the second specified. Shorthand for setting Year, Month, DayOfMonth, Second, and Expiration.
         /// </summary>
-        public ScheduleRule ExecuteOnce(DateTimeOffset time)
+        public ScheduleRule ExecuteOnceAt(DateTimeOffset time)
         {
+            time = time.ToUniversalTime();
             return this.AtYears(time.Year)
                 .AtMonths(time.Month)
                 .AtDaysOfMonth(time.Day)
                 .AtSeconds(time.Second)
+                .WithUtc()
                 .ExpiresAfter(time.AddMinutes(1));
         }
 
@@ -157,6 +159,15 @@ namespace TaskSchedulerEngine
         }
 
         public IScheduledTask? Task { get; set; }
+
+        /// <summary>
+        /// Execute a task with exponential backoff algorithm. See ExponentialBackoffTask for details. 
+        /// </summary>
+        public ScheduleRule ExecuteAndRetry(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback, int maxAttempts, int baseRetryIntervalSeconds)
+        {
+            Task = new ExponentialBackoffTask(callback, maxAttempts, baseRetryIntervalSeconds);
+            return this;
+        }
 
         public ScheduleRule Execute(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback)
         {
