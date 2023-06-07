@@ -26,12 +26,12 @@ namespace SchedulerEngineRuntimeTests
             int callbackThread = testThread;
 
             var runtime = new TaskEvaluationRuntime();
-            runtime.AddSchedule(new ScheduleRule()
+            runtime.CreateSchedule()
                 .Execute((e, token) => {
                     callbackThread = System.Threading.Thread.CurrentThread.ManagedThreadId;
-                    e.Runtime.DeleteSchedule(e.ScheduleRule);
+                    e.ScheduleRule.AsActive(false);
                     return true;
-                }));
+                });
 
             var task = runtime.RunAsync();
             Thread.Sleep(1200);
@@ -46,12 +46,12 @@ namespace SchedulerEngineRuntimeTests
         {
             bool executed = false;
             var runtime = new TaskEvaluationRuntime();
-            runtime.AddSchedule(new ScheduleRule()
+            runtime.CreateSchedule()
                 .ExpiresAfter(DateTimeOffset.Now.AddDays(-1))
                 .Execute((e, token) => {
                     executed = true;
                     return true;
-                }));
+                });
 
             var task = runtime.RunAsync();
             Thread.Sleep(1200);
@@ -70,23 +70,23 @@ namespace SchedulerEngineRuntimeTests
             bool gracefulShutdown2 = false;
 
             var runtime = new TaskEvaluationRuntime();
-            runtime.AddSchedule(new ScheduleRule()
+            runtime.CreateSchedule()
                 .Execute((e, token) => {
                     executed1 = true;
-                    e.Runtime.DeleteSchedule(e.ScheduleRule);
+                    e.ScheduleRule.AsActive(false);
                     Thread.Sleep(3000);
                     gracefulShutdown1 = true;
                     return true;
-                }));
+                });
 
-            runtime.AddSchedule(new ScheduleRule()
+            runtime.CreateSchedule()
                 .Execute((e, token) => {
                     executed2 = true;
-                    e.Runtime.DeleteSchedule(e.ScheduleRule);
+                    e.ScheduleRule.AsActive(false);
                     Thread.Sleep(3000);
                     gracefulShutdown2 = true;
                     return true;
-                }));
+                });
 
             var task = runtime.RunAsync();
             Thread.Sleep(1200); // sleep here req'd otherwise race condition will stop before start
@@ -105,7 +105,7 @@ namespace SchedulerEngineRuntimeTests
             var invoked = new List<DateTimeOffset>();
             var startFrom = DateTimeOffset.UtcNow.AddSeconds(1);
             var runtime = new TaskEvaluationRuntime();
-            runtime.AddSchedule(new ScheduleRule()
+            runtime.CreateSchedule()
                 .ExecuteOnceAt(startFrom)
                 .Execute(new ExponentialBackoffTask(
                     (e, _) => { 
@@ -116,7 +116,7 @@ namespace SchedulerEngineRuntimeTests
                     },
                     4, // max attempts
                     2  // base retry interval
-                )));
+                ));
             
             // Retry logic: baseRetrySeconds*(2^retryCount) seconds
             // Task should execute at 0, 2, 4, 8 second intervals  

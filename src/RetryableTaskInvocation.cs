@@ -36,9 +36,9 @@ namespace TaskSchedulerEngine
                 if (!success && _args.RetryCount < _args.MaxAttempts-1)
                 {
                     //Re evaluate this task in BaseRetryIntervalSeconds*(2^RetryCount) seconds
-                    e.Runtime.AddSchedule(new ScheduleRule()
+                    e.Runtime.CreateSchedule()
                         .ExecuteOnceAt(DateTimeOffset.UtcNow.AddSeconds(_args.BaseRetryIntervalSeconds * (Math.Pow(2, _args.RetryCount))))
-                        .Execute(this));
+                        .Execute(this);
                     _args.RetryCount++;
                 }
             }

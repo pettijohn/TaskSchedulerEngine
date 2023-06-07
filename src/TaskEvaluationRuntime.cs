@@ -91,6 +91,10 @@ namespace TaskSchedulerEngine
             await StopAsync();
         }
 
+        /// <summary>
+        /// Request stop, and then wait for it to stop
+        /// </summary>
+        /// <returns></returns>
         public async Task StopAsync()
         {
             RequestStop();
@@ -276,44 +280,35 @@ namespace TaskSchedulerEngine
             return i;
         }
         
-
         /// <summary>
-        /// Adds a schedule at runtime
+        /// Create a new <see cref="ScheduleRule">ScheduleRule and 
+        /// link it to this runtime.
         /// </summary>
-        public bool AddSchedule(ScheduleRule sched)
+        public ScheduleRule CreateSchedule()
         {
-            var added = false;
-            if (sched != null)
-            {
-                ScheduleEvaluationOptimized schedule = new ScheduleEvaluationOptimized(sched);
-                added = _schedule.TryAdd(sched, schedule);
-            }
-
-            return added;
+            return new ScheduleRule(this);
         }
 
         /// <summary>
         /// Unconditionally update (or add) the schedule with a matching name.
         /// </summary>
-        public void UpdateSchedule(ScheduleRule sched)
+        internal void UpdateSchedule(ScheduleRule sched)
         {
-            if (sched != null)
+            // Once a task is attached, we will treat it as valid and begin evaluating it
+            if (sched != null && sched.Task != null)
             {
-                ScheduleEvaluationOptimized schedule = new ScheduleEvaluationOptimized(sched);
-                _schedule[sched] = schedule;
+                if (!sched.Active)
+                {
+                    var deleted = false;
+                    deleted = _schedule.TryRemove(sched, out _);
+                }
+                else
+                {
+                    ScheduleEvaluationOptimized schedule = new ScheduleEvaluationOptimized(sched);
+                    _schedule[sched] = schedule;
+                }
             }
         }
 
-        /// <summary>
-        /// Deletes the schedule specified by its name.
-        /// </summary>
-        /// <returns>True if deleted</returns>
-        public bool DeleteSchedule(ScheduleRule sched)
-        {
-            var deleted = false;
-            deleted = _schedule.TryRemove(sched, out _);
-            
-            return deleted;
-        }
     }
 }

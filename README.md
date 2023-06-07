@@ -24,21 +24,21 @@ static async Task Main(string[] args)
 
   // Use the fluent API to define a schedule rule, or set the corresponding properties
   // Execute() accepts an IScheduledTask or Action<ScheduleRuleMatchEventArgs, CancellationToken, bool>
-  var s1 = new ScheduleRule()
+  var s1 = runtime.CreateSchedule()
     .AtSeconds(0, 10, 20, 30, 40, 50)
     // .AtMonths(), .AtDays(), AtDaysOfWeek() ... etc
     .WithName("EveryTenSec") //Optional ID for your reference 
     .Execute((e, token) => {
       if(!token.IsCancellationRequested)
-        Console.WriteLine($"{e.TaskId}: Event intended for {e.TimeScheduledUtc:o} occured at {e.TimeScheduledUtc:o}");
+        Console.WriteLine($"{e.TaskId}: Event intended for {e.TimeScheduledUtc:o} occurred at {e.TimeScheduledUtc:o}");
         return true; // Return success. Used by retry scenarios. 
     });
 
-  var s2 = new ScheduleRule()
+  var s2 = runtime.CreateSchedule()
     .ExecuteOnceAt(DateTimeOffset.UtcNow.AddSeconds(5))
     .Execute((_, _) => { Console.WriteLine("Use ExecuteOnceAt to run this task in 5 seconds. Useful for retry scenarios."); return true; });
 
-  var s3 = new ScheduleRule()
+  var s3 = runtime.CreateSchedule()
     .ExecuteOnceAt(DateTimeOffset.UtcNow.AddSeconds(1))
     .ExecuteAndRetry(
       (e, _) => { 
@@ -51,12 +51,10 @@ static async Task Main(string[] args)
          // Retry delay logic: baseRetrySeconds * (2^retryCount) 
          // In this case will retry after 2, 4, 8 second waits
     );
-
-  // Add the schedules to the runtime.
-  runtime.AddSchedule(s1);
-  runtime.AddSchedule(s2);
-  runtime.AddSchedule(s3);
   
+  // Handle the shutdown event (CTRL+C, SIGHUP) if graceful shutdown desired
+  AppDomain.CurrentDomain.ProcessExit += (s, e) => runtime.RequestStop();
+
   // Await the runtime.
   await runtime.RunAsync();
 
@@ -70,7 +68,7 @@ static async Task Main(string[] args)
 
 ## Terminology
 
-* Schedule Rule - cron-like rule, with second-level precision. Leave a parameter unset to treate it as "*", otherwise set an int array for when you want to execute. 
+* Schedule Rule - cron-like rule, with second-level precision. Leave a parameter unset to treat it as "*", otherwise set an int array for when you want to execute. 
 * Scheduled Task - the thing to execute when schedule matches. The instance is shared by all executions forever and should be thread safe (unless you're completely sure there will only ever be at most one invocation). If you need an instance per execution, make ScheduledTask.OnScheduleRuleMatch a factory pattern.
 * Schedule Rule Match - the current second ("Now") matches a Schedule Rule so the Scheduled Task should execute. A single ScheduleRule can only execute one ScheduledTask. If you need to execute multiple tasks sequentially, initiate them from your Task. Multiple Schedule Rules that fire at the same time will execute in parallel (order not guaranteed).
 * Task Evaluation Runtime - the thing that evaluates the rules each second. Evaluation runs on its own thread and spawns Tasks on their own threads.
@@ -87,6 +85,12 @@ static async Task Main(string[] args)
 * RunAsync creates a background thread to evaluate rules. RequestStop requests the background thread to stop. Control is then handed back to RunAsync which waits for all running tasks to complete. Then control is returned from RunAsync to the awaiting caller. 
 
 Validation is basic, so it's possible to create rules that never fire, e.g., on day 31 of February. 
+
+## Changes
+* June 2023: 
+  * Updated to .NET 7. 
+  * Added cron string parsing.
+  * Changed interface; use the runtime to CreateSchedule(), which will automatically add it to the runtime and update it on every configuration change. 
 
 ## A note on the 2010 vs 2021 versions
 

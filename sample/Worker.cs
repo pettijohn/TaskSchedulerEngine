@@ -36,35 +36,35 @@ public class Worker : BackgroundService
             { _logger.LogError("Unhandled error on background thread", e); };
 
         // Schedule an instance of IScheduledTask
-        Runtime.AddSchedule(new ScheduleRule()
+        Runtime.CreateSchedule()
             .WithName("EverySecond")
-            .Execute(new ConsoleWriter()));
+            .Execute(new ConsoleWriter());
         
         // Use a Func<> instead of IScheduledTask (which gets wrapped in an AnonymousScheduledTask instance)
-        Runtime.AddSchedule(new ScheduleRule()
+        Runtime.CreateSchedule()
             .AtSeconds(0, 10, 20, 30, 40, 50)
             .WithName("EveryTenSec")
             .Execute((e, token) => {
                 if(!token.IsCancellationRequested)
-                    _logger.LogInformation($"{e.TaskId}: Event intended for {e.TimeScheduledUtc:o} occured at {e.TimeSignaledUtc:o}");
+                    _logger.LogInformation($"{e.TaskId}: Event intended for {e.TimeScheduledUtc:o} occurred at {e.TimeSignaledUtc:o}");
                 return true;
-            }));
+            });
 
         // Unhandled exceptions need to be managed - see the handler in ctor 
-        Runtime.AddSchedule(new ScheduleRule()
+        Runtime.CreateSchedule()
             .Execute((e, token) => {
                 _logger.LogInformation("Execute once only, delete myself.");
-                e.Runtime.DeleteSchedule(e.ScheduleRule);
+                e.ScheduleRule.AsActive(false);
                 throw new Exception("This is an unhandled exception in a task, handle it with TaskSchedulerRuntime.UnhandledScheduledTaskException.");
-            }));
+            });
 
         // Retry a task with exponential backoff. 
-        Runtime.AddSchedule(new ScheduleRule()
+        Runtime.CreateSchedule()
             .ExecuteOnceAt(DateTimeOffset.UtcNow.AddSeconds(2))
             .Execute(new ExponentialBackoffTask((_, _) =>
             {
                 // Do something that may fail like make a network call.
-                // Gracefull fail by catching the exception and returning false.
+                // Graceful fail by catching the exception and returning false.
                 _logger.LogError("This task will fail and be retried 4 times.");
                 return false;
             },
@@ -72,8 +72,7 @@ public class Worker : BackgroundService
             2  // BaseRetryIntervalSeconds
                // Retry delay logic: baseRetrySeconds * (2^retryCount) 
                // In this case will retry after 2, 4, 8 second intervals  
-            ))
-        );
+            ));
     }
 
     public TaskEvaluationRuntime Runtime { get; set; }

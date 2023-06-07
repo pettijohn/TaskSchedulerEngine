@@ -16,10 +16,7 @@
                 "--framework",
                 "net6.0"
             ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
+            "group": "build",
             "dependsOn": "Build",
             "dependsOrder": "sequence",
             "problemMatcher": [
@@ -39,7 +36,11 @@
             "presentation": {
                 "reveal": "silent"
             },
-            "problemMatcher": "$msCompile"
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         },
         {
             "label": "Clean",
