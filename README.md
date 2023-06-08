@@ -51,6 +51,19 @@ static async Task Main(string[] args)
          // Retry delay logic: baseRetrySeconds * (2^retryCount) 
          // In this case will retry after 2, 4, 8 second waits
     );
+
+  // You can also create rules from cron expressions; * or comma separated lists are supported 
+  // (/ and - are NOT supported). 
+  // Format: minute (0..59), hour (0..23), dayOfMonth (1..31), month (1..12), dayOfWeek (0=Sunday..6).
+  // Seconds will always be zero.
+  var s4 = runtime.CreateSchedule()
+    .FromCron("0,20,40 * * * *")
+    .WithName("Every20Sec") //Optional ID for your reference 
+    .Execute((e, token) => {
+      if(!token.IsCancellationRequested)
+        Console.WriteLine($"Load me from config and change me without recompiling!");
+        return true; 
+    });
   
   // Handle the shutdown event (CTRL+C, SIGHUP) if graceful shutdown desired
   AppDomain.CurrentDomain.ProcessExit += (s, e) => runtime.RequestStop();

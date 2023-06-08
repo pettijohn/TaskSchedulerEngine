@@ -27,12 +27,14 @@ namespace TaskSchedulerEngine
 
         protected TaskEvaluationRuntime? Runtime;
 
+        // Co-authored by Bing/Chat GPT (but it had bugs that I fixed!)
+        internal const string CronRegex = @"^\s*((\*|[0-5]?\d)(,[0-5]?\d)*)\s+((\*|[01]?\d|2[0-3])(,([01]?\d|2[0-3]))*)\s+((\*|0?[0-9]|[12][0-9]|3[01])(,(0?[0-9]|[12][0-9]|3[01]))*)\s+((\*|0?[1-9]|1[012])(,(0?[1-9]|1[012]))*)\s+((\*|[0-6])(,[0-6])*)\s*$";
+        
         /// <summary>
         /// Cron string in the format minute (0..59), hour (0..23), dayOfMonth (1..31), month (1..12), dayOfWeek (0=Sunday..6).
-        /// Will always set Seconds=0; call .AtSeconds() after to override.
+        /// Will always set Seconds=0; call .AtSeconds() after to override. Supports comma separated lists of numbers or stars. 
+        /// DOES NOT support step (/) or range (-) operators. 
         /// </summary>
-        /// <param name="cron"></param>
-        /// <returns></returns>
         public ScheduleRule FromCron(string cronExp)
         {
             /*
@@ -41,21 +43,23 @@ namespace TaskSchedulerEngine
             # .---------------- minute (0 - 59)
             # |  .------------- hour (0 - 23)
             # |  |  .---------- day of month (1 - 31)
-            # |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
-            # |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+            # |  |  |  .------- month (1 - 12) 
+            # |  |  |  |  .---- day of week (0 - 6) (Sunday=0) 
             # |  |  |  |  |
             # *  *  *  *  *
 
             */
 
-            // TODO : lots of validation 
-            var cronParts = Regex.Split(cronExp.Trim(), @"\s+");
+            var match = Regex.Match(cronExp, CronRegex); 
+            if(!match.Success) throw new ArgumentException("Unable to parse cron expression. Only comma-separated digits and * are accepted. Digits must conform to their meaning (e.g. minute must be between 0-59, etc)", "cronExp");
+
+            // groups 1 4 8 12 16
             this.Seconds     = new int[] { 0 };
-            this.Minutes     = cronParts[0] == "*" ? new int[] { } : cronParts[0].Split(",").Select(s => Int32.Parse(s)).ToArray();
-            this.Hours       = cronParts[1] == "*" ? new int[] { } : cronParts[1].Split(",").Select(s => Int32.Parse(s)).ToArray();
-            this.DaysOfMonth = cronParts[2] == "*" ? new int[] { } : cronParts[2].Split(",").Select(s => Int32.Parse(s)).ToArray();
-            this.Months      = cronParts[3] == "*" ? new int[] { } : cronParts[3].Split(",").Select(s => Int32.Parse(s)).ToArray();
-            this.DaysOfWeek  = cronParts[4] == "*" ? new int[] { } : cronParts[4].Split(",").Select(s => Int32.Parse(s)).ToArray();
+            this.Minutes     = match.Groups[1].Value == "*" ? new int[] { } : match.Groups[1].Value.Split(",").Select(s => Int32.Parse(s)).ToArray();
+            this.Hours       = match.Groups[4].Value == "*" ? new int[] { } : match.Groups[4].Value.Split(",").Select(s => Int32.Parse(s)).ToArray();
+            this.DaysOfMonth = match.Groups[8].Value == "*" ? new int[] { } : match.Groups[8].Value.Split(",").Select(s => Int32.Parse(s)).ToArray();
+            this.Months      = match.Groups[12].Value == "*" ? new int[] { } : match.Groups[12].Value.Split(",").Select(s => Int32.Parse(s)).ToArray();
+            this.DaysOfWeek  = match.Groups[16].Value == "*" ? new int[] { } : match.Groups[16].Value.Split(",").Select(s => Int32.Parse(s)).ToArray();
 
             if(Runtime != null) Runtime.UpdateSchedule(this);
             return this;

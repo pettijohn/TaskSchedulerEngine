@@ -189,5 +189,62 @@ namespace SchedulerEngineRuntimeTests
             var rule = new ScheduleRule()
                 .AtSeconds(60);
         }
+
+        [TestMethod]
+        public void Cron_Base_Case()
+        {
+            var rule = new ScheduleRule()
+                .FromCron("55,03 22,19,20 2,03,11,29,31 2,03,11,12 0,5,6");
+
+            Assert.IsTrue(rule.Minutes.Length == 2);
+            Assert.IsTrue(rule.Minutes.Contains(55));
+            Assert.IsTrue(rule.Minutes.Contains(3));
+
+            Assert.IsTrue(rule.Hours.Length == 3);
+            Assert.IsTrue(rule.Hours.Contains(22));
+            Assert.IsTrue(rule.Hours.Contains(19));
+            Assert.IsTrue(rule.Hours.Contains(20));
+
+            Assert.IsTrue(rule.DaysOfMonth.Length == 5);
+            Assert.IsTrue(rule.DaysOfMonth.Contains(2));
+            Assert.IsTrue(rule.DaysOfMonth.Contains(3));
+            Assert.IsTrue(rule.DaysOfMonth.Contains(11));
+            Assert.IsTrue(rule.DaysOfMonth.Contains(29));
+            Assert.IsTrue(rule.DaysOfMonth.Contains(31));
+
+            Assert.IsTrue(rule.Months.Length == 4);
+            Assert.IsTrue(rule.Months.Contains(2));
+            Assert.IsTrue(rule.Months.Contains(3));
+            Assert.IsTrue(rule.Months.Contains(11));
+            Assert.IsTrue(rule.Months.Contains(12));
+
+            Assert.IsTrue(rule.DaysOfWeek.Length == 3);
+            Assert.IsTrue(rule.DaysOfWeek.Contains(0));
+            Assert.IsTrue(rule.DaysOfWeek.Contains(5));
+            Assert.IsTrue(rule.DaysOfWeek.Contains(6));
+        }
+
+        [TestMethod]
+        public void Cron_Stars()
+        {
+            var rule = new ScheduleRule()
+                .FromCron("* * * *\t*");
+
+            Assert.IsTrue(rule.Minutes.Length == 0);
+            Assert.IsTrue(rule.Hours.Length == 0);
+            Assert.IsTrue(rule.DaysOfMonth.Length == 0);
+            Assert.IsTrue(rule.Months.Length == 0);
+            Assert.IsTrue(rule.DaysOfWeek.Length == 0);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentException))]
+        public void Cron_OutOfBounds()
+        {
+            var rule = new ScheduleRule()
+                .FromCron("61 * * *\t*");
+
+            Assert.Fail();
+        }
     }
 }

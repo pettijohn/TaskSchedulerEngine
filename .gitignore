@@ -433,3 +433,6 @@ $RECYCLE.BIN/
 !.vscode/extensions.json
 out/*
 test/lcov.info
+
+
+.nuget
