@@ -4,7 +4,7 @@ A lightweight (zero dependencies, <400 lines of code) cron-like scheduler for in
 Implement IScheduledTask or provide a callback, define a ScheduleRule, and Start the runtime. 
 Schedule Rule evaluation is itself lightweight with bitwise evaluation of "now" against the rules (see ScheduleRuleEvaluationOptimized). 
 Each invoked ScheduledTask runs on its own thread so long running tasks won't block other tasks. 
-Targets .NET Core 3.1, .NET 6 (and presumably everything in between).
+Targets .NET Core 3.1, .NET 6, .NET 7 (and presumably everything in between).
 
 ## Quick Start
 
@@ -14,7 +14,7 @@ See `sample/` in source tree for more detailed examples.
 
 Nuget link: https://www.nuget.org/packages/TaskSchedulerEngine/
 
-Version number scheme is (two digit year).(day of year).(hour).(minute).
+Version number scheme is (two digit year).(day of year).(minute of day).
 
 ```C#
 static async Task Main(string[] args)
@@ -101,9 +101,9 @@ Validation is basic, so it's possible to create rules that never fire, e.g., on 
 
 ## Changes
 * June 2023: 
-  * Updated to .NET 7. 
+  * Updated to include .NET 7.
   * Added cron string parsing.
-  * Changed interface; use the runtime to CreateSchedule(), which will automatically add it to the runtime and update it on every configuration change. 
+  * Changed interface; use the runtime to CreateSchedule(), which will automatically add it to the runtime and update it on every configuration change. Instead of removing, call .AsActive(bool). 
 
 ## A note on the 2010 vs 2021 versions
 

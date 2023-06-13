@@ -14,7 +14,7 @@ using System.Threading;
 
 namespace TaskSchedulerEngine
 {
-    public class ScheduleRule
+    public partial class ScheduleRule
     {
         internal ScheduleRule()
         {
@@ -30,9 +30,14 @@ namespace TaskSchedulerEngine
         // Co-authored by Bing/Chat GPT (but it had bugs that I fixed!)
         internal const string CronRegex = @"^\s*((\*|[0-5]?\d)(,[0-5]?\d)*)\s+((\*|[01]?\d|2[0-3])(,([01]?\d|2[0-3]))*)\s+((\*|0?[0-9]|[12][0-9]|3[01])(,(0?[0-9]|[12][0-9]|3[01]))*)\s+((\*|0?[1-9]|1[012])(,(0?[1-9]|1[012]))*)\s+((\*|[0-6])(,[0-6])*)\s*$";
         
+#if NET7_0_OR_GREATER
+        [GeneratedRegex(CronRegex, RegexOptions.IgnoreCase, "en-US")]
+        private static partial Regex CronCompiledRegex();
+#endif 
+
         /// <summary>
         /// Cron string in the format minute (0..59), hour (0..23), dayOfMonth (1..31), month (1..12), dayOfWeek (0=Sunday..6).
-        /// Will always set Seconds=0; call .AtSeconds() after to override. Supports comma separated lists of numbers or stars. 
+        /// Will always set Seconds=0; call .AtSeconds() to override. Supports comma separated lists of numbers or stars. 
         /// DOES NOT support step (/) or range (-) operators. 
         /// </summary>
         public ScheduleRule FromCron(string cronExp)
@@ -50,7 +55,11 @@ namespace TaskSchedulerEngine
 
             */
 
+#if NET7_0_OR_GREATER
+            var match = CronCompiledRegex().Match(cronExp);
+#else
             var match = Regex.Match(cronExp, CronRegex); 
+#endif
             if(!match.Success) throw new ArgumentException("Unable to parse cron expression. Only comma-separated digits and * are accepted. Digits must conform to their meaning (e.g. minute must be between 0-59, etc)", "cronExp");
 
             // groups 1 4 8 12 16
