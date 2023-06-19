@@ -198,16 +198,35 @@ namespace TaskSchedulerEngine
             return this;
         }
 
-        public DateTimeKind Kind { get; private set; } = DateTimeKind.Utc;
+        public TimeZoneInfo TimeZone { get; private set; } = TimeZoneInfo.Utc;
         public ScheduleRule WithUtc()
         {
-            Kind = DateTimeKind.Utc;
+            TimeZone = TimeZoneInfo.Utc;
             if(Runtime != null) Runtime.UpdateSchedule(this);
             return this;
         }
         public ScheduleRule WithLocalTime()
         {
-            Kind = DateTimeKind.Local;
+            TimeZone = TimeZoneInfo.Local;
+            if(Runtime != null) Runtime.UpdateSchedule(this);
+            return this;
+        }
+        /// <summary>
+        /// Looks up time zone from the system.
+        /// </summary>
+        /// <param name="tzId">Rules defined here https://learn.microsoft.com/en-us/dotnet/api/system.timezoneinfo.findsystemtimezonebyid</param>
+        public ScheduleRule WithTimeZone(string tzId)
+        {
+            try {
+                return WithTimeZone(TimeZoneInfo.FindSystemTimeZoneById(tzId));
+            }
+            catch (TimeZoneNotFoundException) {
+                throw new ArgumentException($"System cannot find time zone {tzId}.", nameof(tzId));
+            }
+        }
+        public ScheduleRule WithTimeZone(TimeZoneInfo tz)
+        {
+            TimeZone = tz;
             if(Runtime != null) Runtime.UpdateSchedule(this);
             return this;
         }
@@ -281,7 +300,7 @@ DaysOfWeek: {PrintArr(DaysOfWeek)}
 Months: {PrintArr(Months)}
 DaysOfMonth: {PrintArr(DaysOfMonth)}
 Years: {PrintArr(Years)}
-Kind: {Kind}
+TimeZone: {TimeZone.DisplayName}
 Expires: {Expiration}
             ";
         }

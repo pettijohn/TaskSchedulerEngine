@@ -1,10 +1,7 @@
 using System;
-using System.Text;
-using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TaskSchedulerEngine;
-using System.Threading;
 
 namespace SchedulerEngineRuntimeTests
 {
@@ -245,6 +242,30 @@ namespace SchedulerEngineRuntimeTests
                 .FromCron("61 * * *\t*");
 
             Assert.Fail();
+        }
+
+        [TestMethod]
+        public void TimeZoneTests()
+        {
+            // Default - UTC
+            var rule = new ScheduleRule()
+                .AtSeconds(0)
+                .AtMinutes(0)
+                .AtHours(11)
+                .Execute((a,b) => true);
+
+            Assert.IsTrue(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(2023, 6, 19, 11, 0, 0, TimeSpan.Zero)));
+
+            // Evaluate against an offset - rule still UTC
+            Assert.IsFalse(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(2023, 6, 19, 11, 0, 0, TimeSpan.FromHours(-8))));
+            Assert.IsTrue(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(2023, 6, 19, 3, 0, 0, TimeSpan.FromHours(-8))));
+
+            // Adjust rule to a different time zone
+            // PST is -8 in winter and -7 in summer
+            var pst = TimeZoneInfo.FindSystemTimeZoneById("America/Los_Angeles");
+            rule.WithTimeZone(pst);
+            Assert.IsTrue(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(2023, 6, 19, 11, 0, 0, TimeSpan.FromHours(-7))));
+            Assert.IsFalse(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(2023, 6, 19, 11, 0, 0, TimeSpan.Zero)));
         }
     }
 }

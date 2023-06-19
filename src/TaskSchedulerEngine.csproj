@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable>
     <PackageId>TaskSchedulerEngine</PackageId>
     <Title>TaskSchedulerEngine</Title>
-    <PackageVersion>23.164.1229</PackageVersion>
+    <PackageVersion>23.170.977</PackageVersion>
     <Authors>Travis Pettijohn</Authors>
     <Copyright>Travis Pettijohn</Copyright>
     <Description>A lightweight cron-like scheduler for in-memory scheduling of your code with second-level precision.</Description>

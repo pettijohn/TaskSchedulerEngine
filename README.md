@@ -28,6 +28,7 @@ static async Task Main(string[] args)
     .AtSeconds(0, 10, 20, 30, 40, 50)
     // .AtMonths(), .AtDays(), AtDaysOfWeek() ... etc
     .WithName("EveryTenSec") //Optional ID for your reference 
+    .WithTimeZone(TimeZoneInfo.Utc) // Or string such as "America/Los_Angeles"
     .Execute((e, token) => {
       if(!token.IsCancellationRequested)
         Console.WriteLine($"{e.TaskId}: Event intended for {e.TimeScheduledUtc:o} occurred at {e.TimeScheduledUtc:o}");
@@ -104,6 +105,7 @@ Validation is basic, so it's possible to create rules that never fire, e.g., on 
   * Updated to include .NET 7.
   * Added cron string parsing.
   * Changed interface; use the runtime to CreateSchedule(), which will automatically add it to the runtime and update it on every configuration change. Instead of removing, call .AsActive(bool). 
+  * Added arbitrary timezone support (previously only local and UTC supported) [ref](https://learn.microsoft.com/en-us/dotnet/api/system.timezoneinfo.findsystemtimezonebyid?view=net-7.0)
 
 ## A note on the 2010 vs 2021 versions
 

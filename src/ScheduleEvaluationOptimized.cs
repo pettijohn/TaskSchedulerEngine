@@ -28,7 +28,7 @@ namespace TaskSchedulerEngine
             this.Hour = ParseIntArrayToBitfield(sched.Hours);
             this.Minute = ParseIntArrayToBitfield(sched.Minutes);
             this.Second = ParseIntArrayToBitfield(sched.Seconds);
-            this.Kind = sched.Kind;
+            this.TimeZone = sched.TimeZone;
             this.Task = sched.Task;
         }
 
@@ -114,7 +114,7 @@ namespace TaskSchedulerEngine
         public long Hour { get; set; }
         public long Minute { get; set; }
         public long Second { get; set; }
-        public DateTimeKind Kind { get; set; }
+        public TimeZoneInfo TimeZone { get; set; }
 
         /// <summary>
         /// Compare the provided DateTimeOffset to the schedule definition. If the event should occur,
@@ -123,13 +123,13 @@ namespace TaskSchedulerEngine
         /// </summary>
         /// <param name="DateTimeOffset">In UTC</param>
         /// <returns></returns>
-        public bool EvaluateRuleMatch(DateTimeOffset timeToEvaluateUtc)
+        public bool EvaluateRuleMatch(DateTimeOffset timeToEvaluateIn)
         {
             //The inputValue is in UTC, but the rule supports comparing in Local time.
             //Determine which we want to compare and save it as compareValue.
-            DateTimeOffset timeToEvaluate = Kind == DateTimeKind.Local ? timeToEvaluateUtc.ToLocalTime() : timeToEvaluateUtc;
+            DateTimeOffset timeToEvaluate = TimeZoneInfo.ConvertTime(timeToEvaluateIn, TimeZone);
             
-            if(timeToEvaluate.Year - ScheduleRule.MinYear < 0) throw new OverflowException("Error evaluating Year paramater in the past.");
+            if(timeToEvaluate.Year - ScheduleRule.MinYear < 0) throw new OverflowException("Error evaluating Year parameter in the past.");
 
             //Perform a bitwise AND on the compareValue and this. If the result is non-zero, then there is a match.
             //1 << x is the same as 2^^x, just faster since it's not a floating point op.
