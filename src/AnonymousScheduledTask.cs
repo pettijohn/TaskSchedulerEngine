@@ -5,6 +5,7 @@
  */
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using TaskSchedulerEngine;
 
 /// <summary>
@@ -12,14 +13,14 @@ using TaskSchedulerEngine;
 /// </summary>
 internal class AnonymousScheduledTask : IScheduledTask
 {
-    public AnonymousScheduledTask(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback)
+    public AnonymousScheduledTask(Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> callback)
     {
         Callback = callback;
     }
 
-    public Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> Callback { get; set; }
+    public Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> Callback { get; set; }
 
-    public bool OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken c)
+    public Task<bool> OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken c)
     {
         return Callback(e, c);
     }

@@ -4,6 +4,7 @@
  * https://github.com/pettijohn/TaskSchedulerEngine
  */
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace TaskSchedulerEngine
 {
@@ -15,6 +16,6 @@ namespace TaskSchedulerEngine
         /// <param name="e">Information about the scheduled time of task.</param>
         /// <param name="c">Allow graceful shutdown.</param>
         /// <returns>Optional success value; useful for e.g. retry scenarios.</returns>
-        bool OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken c);
+        Task<bool> OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken c);
     }
 }

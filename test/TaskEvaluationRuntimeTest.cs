@@ -6,6 +6,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TaskSchedulerEngine;
 using System.Threading;
 using System.Globalization;
+using System.Threading.Tasks;
 
 namespace SchedulerEngineRuntimeTests
 {
@@ -27,7 +28,8 @@ namespace SchedulerEngineRuntimeTests
 
             var runtime = new TaskEvaluationRuntime();
             runtime.CreateSchedule()
-                .Execute((e, token) => {
+                .Execute(async (e, token) =>
+                {
                     callbackThread = System.Threading.Thread.CurrentThread.ManagedThreadId;
                     e.ScheduleRule.AsActive(false);
                     return true;
@@ -48,7 +50,8 @@ namespace SchedulerEngineRuntimeTests
             var runtime = new TaskEvaluationRuntime();
             runtime.CreateSchedule()
                 .ExpiresAfter(DateTimeOffset.Now.AddDays(-1))
-                .Execute((e, token) => {
+                .Execute(async (e, token) =>
+                {
                     executed = true;
                     return true;
                 });
@@ -62,7 +65,7 @@ namespace SchedulerEngineRuntimeTests
         }
 
         [TestMethod]
-        public void TwoLongRunningTasksExecuteSimultaneouslyAndGracefulShutdown()
+        public async Task TwoLongRunningTasksExecuteSimultaneouslyAndGracefulShutdown()
         {
             bool executed1 = false;
             bool executed2 = false;
@@ -71,27 +74,41 @@ namespace SchedulerEngineRuntimeTests
 
             var runtime = new TaskEvaluationRuntime();
             runtime.CreateSchedule()
-                .Execute((e, token) => {
+                .Execute(async (e, token) =>
+                {
                     executed1 = true;
                     e.ScheduleRule.AsActive(false);
-                    Thread.Sleep(3000);
-                    gracefulShutdown1 = true;
+                    try
+                    {
+                        await Task.Delay(3000, token);
+                    }
+                    catch (TaskCanceledException err)
+                    {
+                        gracefulShutdown1 = true;
+                    }
                     return true;
                 });
 
             runtime.CreateSchedule()
-                .Execute((e, token) => {
+                .Execute(async (e, token) =>
+                {
                     executed2 = true;
                     e.ScheduleRule.AsActive(false);
-                    Thread.Sleep(3000);
-                    gracefulShutdown2 = true;
+                    try
+                    {
+                        await Task.Delay(3000, token);
+                    }
+                    catch (TaskCanceledException err)
+                    {
+                        gracefulShutdown2 = true;
+                    }
+
                     return true;
                 });
 
             var task = runtime.RunAsync();
-            Thread.Sleep(1200); // sleep here req'd otherwise race condition will stop before start
-            runtime.RequestStop();
-            task.Wait();
+            await Task.Delay(1200); // sleep here req'd otherwise race condition will stop before start
+            await runtime.StopAsync();
 
             Assert.IsNotNull(executed1);
             Assert.IsTrue(executed2);
@@ -108,16 +125,17 @@ namespace SchedulerEngineRuntimeTests
             runtime.CreateSchedule()
                 .ExecuteOnceAt(startFrom)
                 .Execute(new ExponentialBackoffTask(
-                    (e, _) => { 
+                    async (e, _) =>
+                    {
                         // Do something that may fail like a network call - catch & gracefully fail by returning false.
                         // Exponential backoff task will retry up to maxAttempts times. 
                         invoked.Add(e.TimeScheduledUtc);
-                        return false; 
+                        return false;
                     },
                     4, // max attempts
                     2  // base retry interval
                 ));
-            
+
             // Retry logic: baseRetrySeconds*(2^retryCount) seconds
             // Task should execute at 0, 2, 4, 8 second intervals  
 

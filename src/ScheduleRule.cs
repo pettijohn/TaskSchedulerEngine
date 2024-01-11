@@ -8,6 +8,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 
 [assembly: InternalsVisibleToAttribute("TaskSchedulerEngineTests")]
 
@@ -265,14 +266,14 @@ namespace TaskSchedulerEngine
         /// <summary>
         /// Execute a task with exponential backoff algorithm. See ExponentialBackoffTask for details. 
         /// </summary>
-        public ScheduleRule ExecuteAndRetry(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback, int maxAttempts, int baseRetryIntervalSeconds)
+        public ScheduleRule ExecuteAndRetry(Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> callback, int maxAttempts, int baseRetryIntervalSeconds)
         {
             Task = new ExponentialBackoffTask(callback, maxAttempts, baseRetryIntervalSeconds);
             if(Runtime != null) Runtime.UpdateSchedule(this);
             return this;
         }
 
-        public ScheduleRule Execute(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback)
+        public ScheduleRule Execute(Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> callback)
         {
             Task = new AnonymousScheduledTask(callback);
             if(Runtime != null) Runtime.UpdateSchedule(this);

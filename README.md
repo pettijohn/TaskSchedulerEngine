@@ -29,7 +29,7 @@ static async Task Main(string[] args)
     // .AtMonths(), .AtDays(), AtDaysOfWeek() ... etc
     .WithName("EveryTenSec") //Optional ID for your reference 
     .WithTimeZone(TimeZoneInfo.Utc) // Or string such as "America/Los_Angeles"
-    .Execute((e, token) => {
+    .Execute(async (e, token) => {
       if(!token.IsCancellationRequested)
         Console.WriteLine($"{e.TaskId}: Event intended for {e.TimeScheduledUtc:o} occurred at {e.TimeScheduledUtc:o}");
         return true; // Return success. Used by retry scenarios. 
@@ -37,12 +37,12 @@ static async Task Main(string[] args)
 
   var s2 = runtime.CreateSchedule()
     .ExecuteOnceAt(DateTimeOffset.UtcNow.AddSeconds(5))
-    .Execute((_, _) => { Console.WriteLine("Use ExecuteOnceAt to run this task in 5 seconds. Useful for retry scenarios."); return true; });
+    .Execute(async (_, _) => { Console.WriteLine("Use ExecuteOnceAt to run this task in 5 seconds. Useful for retry scenarios."); return true; });
 
   var s3 = runtime.CreateSchedule()
     .ExecuteOnceAt(DateTimeOffset.UtcNow.AddSeconds(1))
     .ExecuteAndRetry(
-      (e, _) => { 
+      async (e, _) => { 
           // Do something that may fail like a network call - catch & gracefully fail by returning false.
           // Exponential backoff task will retry up to MaxAttempts times. 
           return false; 
@@ -60,7 +60,7 @@ static async Task Main(string[] args)
   var s4 = runtime.CreateSchedule()
     .FromCron("0,20,40 * * * *")
     .WithName("Every20Sec") //Optional ID for your reference 
-    .Execute((e, token) => {
+    .Execute(async (e, token) => {
       if(!token.IsCancellationRequested)
         Console.WriteLine($"Load me from config and change me without recompiling!");
         return true; 

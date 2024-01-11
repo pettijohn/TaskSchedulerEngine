@@ -49,8 +49,8 @@ namespace TaskSchedulerEngine
         /// </summary>
         private TaskEvaluationRuntimeState _runState = TaskEvaluationRuntimeState.Stopped;
         private object _lock_runState = new object();
-        public bool Stopped 
-        { 
+        public bool Stopped
+        {
             get
             {
                 lock (_lock_runState)
@@ -78,7 +78,7 @@ namespace TaskSchedulerEngine
         {
             lock (_lock_runState)
             {
-                if(_runState != TaskEvaluationRuntimeState.Stopped)
+                if (_runState != TaskEvaluationRuntimeState.Stopped)
                     throw new InvalidOperationException("Can only start the service when stopped.");
                 _runState = TaskEvaluationRuntimeState.Running;
             }
@@ -98,7 +98,7 @@ namespace TaskSchedulerEngine
         public async Task StopAsync()
         {
             RequestStop();
-            
+
             lock (_lock_runState)
             {
                 _runState = TaskEvaluationRuntimeState.StoppingGracefully;
@@ -122,13 +122,13 @@ namespace TaskSchedulerEngine
             //Request that it stop running.
             lock (_lock_runState)
             {
-                if (_runState == TaskEvaluationRuntimeState.Stopped 
+                if (_runState == TaskEvaluationRuntimeState.Stopped
                     || _runState == TaskEvaluationRuntimeState.StoppingGracefully
                     || _runState == TaskEvaluationRuntimeState.StopRequested)
                     return false;
 
                 _runState = TaskEvaluationRuntimeState.StopRequested;
-                if(_evaluationLoopCancellationToken != null)
+                if (_evaluationLoopCancellationToken != null)
                     _evaluationLoopCancellationToken.Cancel();
                 return true;
             }
@@ -158,7 +158,7 @@ namespace TaskSchedulerEngine
 
             //Set up a cancellation token for the main loop
             _evaluationLoopCancellationToken = new CancellationTokenSource();
-            try 
+            try
             {
                 //Begin the evaluation pump
                 while (!_evaluationLoopCancellationToken.IsCancellationRequested)
@@ -208,7 +208,7 @@ namespace TaskSchedulerEngine
             finally
             {
                 // Clean up the cancellation token 
-                if(_evaluationLoopCancellationToken != null)
+                if (_evaluationLoopCancellationToken != null)
                     _evaluationLoopCancellationToken.Dispose();
             }
         }
@@ -220,11 +220,11 @@ namespace TaskSchedulerEngine
         {
             //TODO : convert secondToEvaluate to a faster format and avoid the extra bit-shifts downstream.
             int i = 0;
-            
+
             foreach (KeyValuePair<ScheduleRule, ScheduleEvaluationOptimized> scheduleItem in _schedule)
             {
                 //Check for & delete expired schedules 
-                if(secondToEvaluate > scheduleItem.Key.Expiration)
+                if (secondToEvaluate > scheduleItem.Key.Expiration)
                 {
                     // Is this safe? 
                     _schedule.Remove(scheduleItem.Key, out _);
@@ -246,12 +246,10 @@ namespace TaskSchedulerEngine
                     Task? workerTask = null;
                     try
                     {
-                        workerTask = System.Threading.Tasks.Task.Run(() => {
-                            if(_evaluationLoopCancellationToken != null)
-                                scheduleItem.Value.Task.OnScheduleRuleMatch(eventArgs, _evaluationLoopCancellationToken.Token);
-                            else
-                                throw new ArgumentNullException("CancellationTokenSource unexpectedly null.");
-                        });
+                        var ct = _evaluationLoopCancellationToken.Token;
+                        // run in it's own task so that any sync code doesn't block the scheduler.
+                        workerTask = Task.Run<bool>(() => scheduleItem.Value.Task.OnScheduleRuleMatch(eventArgs, ct), ct);
+
                         // Keep a ConcurrentDict of running Tasks for graceful shutdown 
                         _runningTasks[workerTask] = workerTask;
                         Trace.WriteLine("Running task count: " + _runningTasks.Count, "TaskSchedulerEngine");
@@ -266,12 +264,12 @@ namespace TaskSchedulerEngine
                                     UnhandledScheduledTaskException(t.Exception);
                         });
                     }
-                    catch(Exception e)
+                    catch (Exception e)
                     {
                         // This code block should never be reached - the ContinueWith handler 
                         // should take care of it. But I don't want the main loop to ever die, 
                         // so being extra cautious. 
-                        if(UnhandledScheduledTaskException != null)
+                        if (UnhandledScheduledTaskException != null)
                             UnhandledScheduledTaskException(e);
                     }
                 }
@@ -279,7 +277,7 @@ namespace TaskSchedulerEngine
 
             return i;
         }
-        
+
         /// <summary>
         /// Create a new <see cref="ScheduleRule">ScheduleRule and 
         /// link it to this runtime.
