@@ -133,13 +133,13 @@ namespace TaskSchedulerEngine
 
             //Perform a bitwise AND on the compareValue and this. If the result is non-zero, then there is a match.
             //1 << x is the same as 2^^x, just faster since it's not a floating point op.
-            return (((1L << (timeToEvaluate.Year - ScheduleRule.MinYear) & this.Year) != 0)
+            return (((1L << (timeToEvaluate.Year - ScheduleRule.MinYear)) & this.Year) != 0)
                 && ((1L << timeToEvaluate.Month & this.Month) != 0)
                 && ((1L << timeToEvaluate.Day & this.DayOfMonth) != 0)
                 && ((1L << (int)timeToEvaluate.DayOfWeek & this.DayOfWeek) != 0)
                 && ((1L << timeToEvaluate.Hour & this.Hour) != 0)
                 && ((1L << timeToEvaluate.Minute & this.Minute) != 0)
-                && ((1L << timeToEvaluate.Second & this.Second) != 0));
+                && ((1L << timeToEvaluate.Second & this.Second) != 0);
         }
 
     }
