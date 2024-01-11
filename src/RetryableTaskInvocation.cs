@@ -5,6 +5,7 @@
  */
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace TaskSchedulerEngine
 {
@@ -22,10 +23,10 @@ namespace TaskSchedulerEngine
         private object _lockObject = new Object();
         
 
-        public bool OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken c)
+        public async Task<bool> OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken c)
         {
             // 0th invocation 
-            bool success = _args.Task.OnScheduleRuleMatch(e, c);
+            bool success = await _args.Task.OnScheduleRuleMatch(e, c);
             lock (_lockObject) //thread safety 
             {
                 // Compare against MaxAttempts - 1. 

@@ -50,17 +50,17 @@ namespace SchedulerEngineRuntimeTests
                 .AtHours(0, 23)
                 .AtMinutes(0)
                 .AtSeconds(0)
-                .AtDaysOfWeek(3)
+                .AtDaysOfWeek((int)new DateTime(DateTime.Now.Year, 11, 30).DayOfWeek)
                 .AtDaysOfMonth(30)
                 .AtMonths(11)
-                .AtYears(2022)
+                .AtYears(DateTime.Now.Year)
                 .WithName("Optional name/ID parameter")
                 .WithUtc()
-                .Execute((e, c) => { return true; }); //noop callback, as callback cannot be null
+                .Execute(async (e, c) => { return true; }); //noop callback, as callback cannot be null
 
             var evalOptimized = new ScheduleEvaluationOptimized(rule);
 
-            var evalTime = new DateTimeOffset(2022, 11, 30, 23, 0, 0, TimeSpan.Zero);
+            var evalTime = new DateTimeOffset(DateTime.Now.Year, 11, 30, 23, 0, 0, TimeSpan.Zero);
 
             var testResult = evalOptimized.EvaluateRuleMatch(evalTime);
             Assert.IsTrue(testResult);
@@ -69,12 +69,12 @@ namespace SchedulerEngineRuntimeTests
         [TestMethod]
         public void ExecuteOnceTest()
         {
-            var executeTime = new DateTimeOffset(2022, 11, 30, 23, 0, 0, TimeSpan.Zero);
+            var executeTime = new DateTimeOffset(DateTime.Now.Year, 11, 30, 23, 0, 0, TimeSpan.Zero);
             var rule = new ScheduleRule()
                 .ExecuteOnceAt(executeTime)
                 .WithName("Optional name/ID parameter")
                 .WithUtc()
-                .Execute((e, c) => { return true; }); //noop callback, as callback cannot be null
+                .Execute(async (e, c) => { return true; }); //noop callback, as callback cannot be null
 
             var evalOptimized = new ScheduleEvaluationOptimized(rule);
 
@@ -252,20 +252,20 @@ namespace SchedulerEngineRuntimeTests
                 .AtSeconds(0)
                 .AtMinutes(0)
                 .AtHours(11)
-                .Execute((a,b) => true);
+                .Execute(async (a,b) => true);
 
-            Assert.IsTrue(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(2023, 6, 19, 11, 0, 0, TimeSpan.Zero)));
+            Assert.IsTrue(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(DateTime.Now.Year, 6, 19, 11, 0, 0, TimeSpan.Zero)));
 
             // Evaluate against an offset - rule still UTC
-            Assert.IsFalse(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(2023, 6, 19, 11, 0, 0, TimeSpan.FromHours(-8))));
-            Assert.IsTrue(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(2023, 6, 19, 3, 0, 0, TimeSpan.FromHours(-8))));
+            Assert.IsFalse(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(DateTime.Now.Year, 6, 19, 11, 0, 0, TimeSpan.FromHours(-8))));
+            Assert.IsTrue(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(DateTime.Now.Year, 6, 19, 3, 0, 0, TimeSpan.FromHours(-8))));
 
             // Adjust rule to a different time zone
             // PST is -8 in winter and -7 in summer
             var pst = TimeZoneInfo.FindSystemTimeZoneById("America/Los_Angeles");
             rule.WithTimeZone(pst);
-            Assert.IsTrue(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(2023, 6, 19, 11, 0, 0, TimeSpan.FromHours(-7))));
-            Assert.IsFalse(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(2023, 6, 19, 11, 0, 0, TimeSpan.Zero)));
+            Assert.IsTrue(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(DateTime.Now.Year, 6, 19, 11, 0, 0, TimeSpan.FromHours(-7))));
+            Assert.IsFalse(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(DateTime.Now.Year, 6, 19, 11, 0, 0, TimeSpan.Zero)));
         }
     }
 }

@@ -5,6 +5,7 @@
  */
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace TaskSchedulerEngine
 {
@@ -15,7 +16,7 @@ namespace TaskSchedulerEngine
     /// </summary>
     public class ExponentialBackoffTask : IScheduledTask
     {
-        public ExponentialBackoffTask(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback, int maxAttempts, int baseRetryInteravalSeconds)
+        public ExponentialBackoffTask(Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> callback, int maxAttempts, int baseRetryInteravalSeconds)
             : this(new RetryableTaskArgs(new AnonymousScheduledTask(callback), maxAttempts, baseRetryInteravalSeconds))
         {
         }
@@ -26,7 +27,7 @@ namespace TaskSchedulerEngine
 
         private RetryableTaskArgs _args;
 
-        public bool OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken c)
+        public Task<bool> OnScheduleRuleMatch(ScheduleRuleMatchEventArgs e, CancellationToken c)
         {
             //Factory pattern needs to create a new instance to manage the retry lifetime of this invocation 
             // If we didn't clone then future instances here would start from already having their retries "used up."
