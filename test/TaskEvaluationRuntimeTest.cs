@@ -20,6 +20,48 @@ namespace SchedulerEngineRuntimeTests
         { }
 
         [TestMethod]
+        public async Task ExecuteTest()
+        {
+            bool executed = false;
+            var runtime = new TaskEvaluationRuntime();
+            runtime.CreateSchedule()
+                .Execute((e, token) =>
+                {
+                    executed = true;
+                    return true;
+                });
+
+            var task = runtime.RunAsync();
+            await Task.Delay(1200);
+
+            await runtime.StopAsync();
+
+            Assert.IsTrue(executed);
+        }
+
+        [TestMethod]
+        public async Task ExecuteAsyncTest()
+        {
+            bool executed = false;
+            var runtime = new TaskEvaluationRuntime();
+            runtime.CreateSchedule()
+                .Execute(async (e, token) =>
+                {
+                    await Task.Delay(500);
+                    executed = true;
+                    return true;
+                });
+
+            var task = runtime.RunAsync();
+            await Task.Delay(1200);
+
+            await runtime.StopAsync();
+
+            Assert.IsTrue(executed);
+        }
+
+
+        [TestMethod]
         public void SingleExecutionOnSeparateThreads()
         {
             var testThread = System.Threading.Thread.CurrentThread.ManagedThreadId;
@@ -117,15 +159,14 @@ namespace SchedulerEngineRuntimeTests
         }
 
         [TestMethod]
-        public void ExponentialBackoffTaskTest()
+        public async Task ExponentialBackoffTaskTest()
         {
             var invoked = new List<DateTimeOffset>();
             var startFrom = DateTimeOffset.UtcNow.AddSeconds(1);
             var runtime = new TaskEvaluationRuntime();
             runtime.CreateSchedule()
                 .ExecuteOnceAt(startFrom)
-                .Execute(new ExponentialBackoffTask(
-                    async (e, _) =>
+                .ExecuteAndRetry((e, _) =>
                     {
                         // Do something that may fail like a network call - catch & gracefully fail by returning false.
                         // Exponential backoff task will retry up to maxAttempts times. 
@@ -134,15 +175,15 @@ namespace SchedulerEngineRuntimeTests
                     },
                     4, // max attempts
                     2  // base retry interval
-                ));
+                );
 
             // Retry logic: baseRetrySeconds*(2^retryCount) seconds
             // Task should execute at 0, 2, 4, 8 second intervals  
 
             var task = runtime.RunAsync();
-            Thread.Sleep(40000); // wait for retries - long enough for an incorrect fifth invocation. 
-            runtime.RequestStop();
-            task.Wait();
+            await Task.Delay(23000); // wait for retries - long enough for an incorrect fifth invocation. 
+            await runtime.StopAsync();
+            await task;
 
             Console.WriteLine(startFrom);
             for (int i = 0; i < invoked.Count; i++)
@@ -158,5 +199,46 @@ namespace SchedulerEngineRuntimeTests
             Assert.IsTrue(span > TimeSpan.FromSeconds(12) && span < TimeSpan.FromSeconds(16));
         }
 
+        [TestMethod]
+        public async Task ExponentialBackoffTaskAsyncTest()
+        {
+            var invoked = new List<DateTimeOffset>();
+            var startFrom = DateTimeOffset.UtcNow.AddSeconds(1);
+            var runtime = new TaskEvaluationRuntime();
+            runtime.CreateSchedule()
+                .ExecuteOnceAt(startFrom)
+                .ExecuteAndRetry(async (e, _) =>
+                {
+                    await Task.Delay(1);
+                    // Do something that may fail like a network call - catch & gracefully fail by returning false.
+                    // Exponential backoff task will retry up to maxAttempts times. 
+                    invoked.Add(e.TimeScheduledUtc);
+                    return false;
+                },
+                    4, // max attempts
+                    2  // base retry interval
+                );
+
+            // Retry logic: baseRetrySeconds*(2^retryCount) seconds
+            // Task should execute at 0, 2, 4, 8 second intervals  
+
+            var task = runtime.RunAsync();
+            await Task.Delay(23000); // wait for retries - long enough for an incorrect fifth invocation. 
+            await runtime.StopAsync();
+            await task;
+
+            Console.WriteLine(startFrom);
+            for (int i = 0; i < invoked.Count; i++)
+            {
+                Console.WriteLine($"{i}: {(invoked[i] - invoked[0]).TotalSeconds}");
+            }
+
+            Assert.AreEqual(4, invoked.Count);
+            CollectionAssert.AllItemsAreUnique(invoked);
+            // Should be about 14 seconds between first and last - with a little wiggle room 
+            var span = invoked.Last() - invoked.First();
+            Console.WriteLine($"Retry total duration: {span.TotalSeconds}");
+            Assert.IsTrue(span > TimeSpan.FromSeconds(12) && span < TimeSpan.FromSeconds(16));
+        }
     }
 }
