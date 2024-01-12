@@ -25,13 +25,15 @@ static async Task Main(string[] args)
   // Use the fluent API to define a schedule rule, or set the corresponding properties
   // Execute() accepts an IScheduledTask or Action<ScheduleRuleMatchEventArgs, CancellationToken, bool>
   var s1 = runtime.CreateSchedule()
-    .AtSeconds(0, 10, 20, 30, 40, 50)
+    .AtSeconds(0)
+    .AtMinutes(0, 10, 20, 30, 40, 50)
     // .AtMonths(), .AtDays(), AtDaysOfWeek() ... etc
-    .WithName("EveryTenSec") //Optional ID for your reference 
+    // Important note that unset is always *, so if you omit AtSeconds(0) it will execute every second
+    .WithName("EveryTenMinutes") // Optional ID for your reference 
     .WithTimeZone(TimeZoneInfo.Utc) // Or string such as "America/Los_Angeles"
     .Execute(async (e, token) => {
       if(!token.IsCancellationRequested)
-        Console.WriteLine($"{e.TaskId}: Event intended for {e.TimeScheduledUtc:o} occurred at {e.TimeScheduledUtc:o}");
+        Console.WriteLine($"{e.TaskId}: Event intended for {e.TimeScheduledUtc:o} occurred at {e.TimeSignaledUtc:o}");
         return true; // Return success. Used by retry scenarios. 
     });
 
@@ -47,7 +49,7 @@ static async Task Main(string[] args)
           // Exponential backoff task will retry up to MaxAttempts times. 
           return false; 
       },
-      4, // MaxAttempts
+      4, // MaxAttempts, inclusive of initial attempt 
       2  // BaseRetryIntervalSeconds
          // Retry delay logic: baseRetrySeconds * (2^retryCount) 
          // In this case will retry after 2, 4, 8 second waits
@@ -82,10 +84,14 @@ static async Task Main(string[] args)
 
 ## Terminology
 
-* Schedule Rule - cron-like rule, with second-level precision. Leave a parameter unset to treat it as "*", otherwise set an int array for when you want to execute. 
+* Schedule Rule - cron-like rule, with second-level precision. Leave a parameter unset/null to treat it as "*", otherwise set an int array for when you want to execute. See usage note above in `EveryTenMinutes` example.
 * Scheduled Task - the thing to execute when schedule matches. The instance is shared by all executions forever and should be thread safe (unless you're completely sure there will only ever be at most one invocation). If you need an instance per execution, make ScheduledTask.OnScheduleRuleMatch a factory pattern.
 * Schedule Rule Match - the current second ("Now") matches a Schedule Rule so the Scheduled Task should execute. A single ScheduleRule can only execute one ScheduledTask. If you need to execute multiple tasks sequentially, initiate them from your Task. Multiple Schedule Rules that fire at the same time will execute in parallel (order not guaranteed).
 * Task Evaluation Runtime - the thing that evaluates the rules each second. Evaluation runs on its own thread and spawns Tasks on their own threads.
+
+## Troubleshooting
+
+* *My task is executing every second, but I scheduled it to run with a different interval.* - You probably need to add .AtSeconds(0). Unspecified/unset/null is always treated as */every. See example above, `EveryTenMinutes`. While there are other ways to solve this problem, this encourages verbosity. Like Cron, consider being verbose and setting every parameter every time. 
 
 ## Runtime Lifecycle
 
