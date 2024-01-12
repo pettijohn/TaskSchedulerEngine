@@ -56,7 +56,7 @@ namespace SchedulerEngineRuntimeTests
                 .AtYears(DateTime.Now.Year)
                 .WithName("Optional name/ID parameter")
                 .WithUtc()
-                .Execute(async (e, c) => { return true; }); //noop callback, as callback cannot be null
+                .Execute((e, c) => { return true; }); //noop callback, as callback cannot be null
 
             var evalOptimized = new ScheduleEvaluationOptimized(rule);
 
@@ -74,7 +74,7 @@ namespace SchedulerEngineRuntimeTests
                 .ExecuteOnceAt(executeTime)
                 .WithName("Optional name/ID parameter")
                 .WithUtc()
-                .Execute(async (e, c) => { return true; }); //noop callback, as callback cannot be null
+                .Execute((e, c) => { return true; }); //noop callback, as callback cannot be null
 
             var evalOptimized = new ScheduleEvaluationOptimized(rule);
 
@@ -252,7 +252,7 @@ namespace SchedulerEngineRuntimeTests
                 .AtSeconds(0)
                 .AtMinutes(0)
                 .AtHours(11)
-                .Execute(async (a,b) => true);
+                .Execute((a, b) => true);
 
             Assert.IsTrue(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(DateTime.Now.Year, 6, 19, 11, 0, 0, TimeSpan.Zero)));
 

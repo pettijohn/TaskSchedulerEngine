@@ -273,11 +273,24 @@ namespace TaskSchedulerEngine
             return this;
         }
 
+        /// <summary>
+        /// Execute a task with exponential backoff algorithm. See ExponentialBackoffTask for details. 
+        /// </summary>
+        public ScheduleRule ExecuteAndRetry(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback, int maxAttempts, int baseRetryIntervalSeconds)
+        {
+            return ExecuteAndRetry(async (e, ct) => callback(e, ct), maxAttempts, baseRetryIntervalSeconds);
+        }
+
         public ScheduleRule Execute(Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> callback)
         {
             Task = new AnonymousScheduledTask(callback);
             if(Runtime != null) Runtime.UpdateSchedule(this);
             return this;
+        }
+
+        public ScheduleRule Execute(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback)
+        {
+            return Execute(async (e, ct) => callback(e, ct));
         }
 
         public ScheduleRule Execute(IScheduledTask taskInstance)
