@@ -1,11 +1,13 @@
 $ErrorActionPreference = 'Stop'
 
-# two digit year, 2 digit weeknum, 2 digit hour, 2 digit mintu
+# two digit year (%y), 2 day of year (%j), 2 minute of day
 #$versionNum = get-date -UFormat %y.%V.%H.%M
+$year = get-date -AsUTC -UFormat %y
+$dayOfYear = (get-date -AsUTC -UFormat %j).TrimStart("0")
 $hour = get-date -AsUTC -UFormat %H
 $min = get-date -AsUTC -UFormat %M
-$minOfDay = ([Int32]$hour) * 60 + ([Int32]$min)
-$versionNum = (get-date -AsUTC -UFormat %y.%j) + "." + $minOfDay
+$minOfDay = (([Int32]$hour) * 60 + ([Int32]$min)).ToSTring().TrimStart("0")
+$versionNum = "${year}.${dayOfYear}.${minOfDay}"
 
 
 $projPath = get-item ".\src\TaskSchedulerEngine.csproj"
@@ -19,4 +21,4 @@ $apiKey = get-content .nuget
 dotnet pack -c Release -o .\out\
 dotnet nuget push --source https://api.nuget.org/v3/index.json --api-key $apiKey ".\out\TaskSchedulerEngine.${versionNum}.nupkg"
 
-git tag $versionNum
+#git tag $versionNum
