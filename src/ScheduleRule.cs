@@ -248,80 +248,6 @@ namespace TaskSchedulerEngine
             return s;
         }
 
-        /// <summary>
-        /// Execute once for every year, on first second of first minute of first hour of first day of first month of year
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public ScheduleRule ExecuteOnceAYear()
-        {
-            return this.AtMonths(1)
-                .ExecuteOnceAMonth();
-        }
-
-        /// <summary>
-        /// Execute once for a month, on first second of first minute of first hour of first day of month 
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public ScheduleRule ExecuteOnceAMonth()
-        {
-            return this.AtDaysOfMonth(1)
-                .ExecuteOnceADay();
-        }
-
-        /// <summary>
-        /// Execute once for a month, on first second of first minute of first hour of first day of month 
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public ScheduleRule ExecuteOnceAWeek()
-        {
-            return this.AtDaysOfWeek(0)
-                .ExecuteOnceADay();
-        }
-
-        /// <summary>
-        /// Execute once a day, on first second of first minute of day
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public ScheduleRule ExecuteOnceADay()
-        {
-            return this.AtHours(0)
-                .ExecuteOnceAnHour();
-        }
-
-        /// <summary>
-        /// Execute once for each hour specified, on first second of first minute of hour
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public ScheduleRule ExecuteOnceAnHour()
-        {
-            return this.AtMinutes(0)
-                .ExecuteOnceAMinute();
-        }
-
-        /// <summary>
-        /// Execute once for a minute specified, on first second of the minute
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public ScheduleRule ExecuteOnceAMinute()
-        {
-            return this.AtSeconds(0);
-        }
-
-        /// <summary>
-        /// Execute once for a minute specified, on first second of the minute
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public ScheduleRule ExecuteOnceASecond()
-        {
-            return this.AtSeconds(Enumerable.Range(0, 60).ToArray());
-        }
 
 
         /// <summary>
@@ -329,10 +255,14 @@ namespace TaskSchedulerEngine
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public ScheduleRule ExecuteOnceAtYears(params int[] value)
+        public ScheduleRule ExecuteEveryYear(params int[] value)
         {
             return this.AtYears(value)
-                .ExecuteOnceAYear();
+                .AtMonths(1)
+                .AtDaysOfMonth(1)
+                .AtHours(0)
+                .AtMinutes(0)
+                .AtSeconds(0);
         }
 
         /// <summary>
@@ -340,10 +270,14 @@ namespace TaskSchedulerEngine
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public ScheduleRule ExecuteOnceAtMonths(params int[] value)
+        public ScheduleRule ExecuteEveryMonth(params int[] value)
         {
-            return this.AtMonths(value)
-                .ExecuteOnceAMonth();
+            return this
+                .AtMonths(value)
+                .AtDaysOfMonth(1)
+                .AtHours(0)
+                .AtMinutes(0)
+                .AtSeconds(0);
         }
 
 
@@ -352,10 +286,13 @@ namespace TaskSchedulerEngine
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public ScheduleRule ExecuteOnceAtDaysOfMonth(params int[] value)
+        public ScheduleRule ExecuteEveryDayOfMonth(params int[] value)
         {
-            return this.AtDaysOfMonth(value)
-                .ExecuteOnceADay();
+            return this
+                .AtDaysOfMonth(value)
+                .AtHours(0)
+                .AtMinutes(0)
+                .AtSeconds(0);
         }
 
         /// <summary>
@@ -363,21 +300,12 @@ namespace TaskSchedulerEngine
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public ScheduleRule ExecuteOnceAtDaysOfWeek(params DayOfWeek[] value)
-        {
-            return this.AtDaysOfWeek(value.Select(v => (int)v).ToArray())
-                .ExecuteOnceADay();
-        }
-
-        /// <summary>
-        /// Execute once for each day of week specified, on first second of first minute of first hour of day 
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public ScheduleRule ExecuteOnceAtDaysOfWeek(params int[] value)
+        public ScheduleRule ExecuteEveryDayOfWeek(params int[] value)
         {
             return this.AtDaysOfWeek(value)
-                .ExecuteOnceADay();
+                .AtHours(0)
+                .AtMinutes(0)
+                .AtSeconds(0);
         }
 
         /// <summary>
@@ -385,10 +313,11 @@ namespace TaskSchedulerEngine
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public ScheduleRule ExecuteOnceAtHours(params int[] value)
+        public ScheduleRule ExecuteEveryHour(params int[] value)
         {
             return this.AtHours(value)
-                .ExecuteOnceAnHour();
+                .AtMinutes(0)
+                .AtSeconds(0);
         }
 
         /// <summary>
@@ -396,10 +325,10 @@ namespace TaskSchedulerEngine
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public ScheduleRule ExecuteOnceAtMinutes(params int[] value)
+        public ScheduleRule ExecuteEveryMinute(params int[] value)
         {
             return this.AtMinutes(value)
-                .ExecuteOnceAMinute();
+                .AtSeconds(0);
         }
 
         /// <summary>
@@ -407,9 +336,9 @@ namespace TaskSchedulerEngine
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public ScheduleRule ExecuteOnceAtSeconds(params int[] value)
+        public ScheduleRule ExecuteEverySecond(params int[] value)
         {
-            return this.AtSeconds(value);
+            return this.AtSeconds(value ?? Enumerable.Range(0,60).ToArray());
         }
 
 
