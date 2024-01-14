@@ -15,13 +15,14 @@ $csproj = [xml] (get-content $projPath)
 $csproj.Project.PropertyGroup.PackageVersion = $versionNum
 $csProj.Save($projPath)
 
+Write-Host "Commit git; press any key to push to nuget and git"
 Read-Host -Prompt $versionNum;
 
 $apiKey = get-content .nuget
 dotnet pack -c Release -o .\out\
 dotnet nuget push --source https://api.nuget.org/v3/index.json --api-key $apiKey ".\out\TaskSchedulerEngine.${versionNum}.nupkg"
 
-#git tag $versionNum
-#git commit -a -m "${versionNum}"
-#git push
-#git push --tags 
+git tag $versionNum
+git commit -a -m "${versionNum}"
+git push
+git push --tags 
