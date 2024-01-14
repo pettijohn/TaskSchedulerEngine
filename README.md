@@ -67,6 +67,14 @@ static async Task Main(string[] args)
         Console.WriteLine($"Load me from config and change me without recompiling!");
         return true; 
     });
+
+  // Finally, there are helper methods ExecuteEvery*() that execute a task at a given interval. 
+  var s4 = runtime.CreateSchedule()
+    // Run the task a 0 minutes and 0 seconds past the hours 0, 6, 12, and 18
+    .ExecuteEveryHour(0, 6, 12, 18) 
+    .Execute(async (e, token) => {
+        return true; 
+    });
   
   // Handle the shutdown event (CTRL+C, SIGHUP) if graceful shutdown desired
   AppDomain.CurrentDomain.ProcessExit += (s, e) => runtime.RequestStop();

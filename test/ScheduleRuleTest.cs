@@ -208,6 +208,9 @@ namespace SchedulerEngineRuntimeTests
                 .Execute((e, c) => { return true; }));
             for(int i=0;i<60;i++)
                 Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime.AddHours(i)));
+            
+            // Ensure only executes at zeroth minute 
+            Assert.IsFalse(evalOptimized.EvaluateRuleMatch(evalTime.AddMinutes(3)));
         }
 
         [TestMethod]
