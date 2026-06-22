@@ -20,13 +20,30 @@ namespace TaskSchedulerEngine
     public class TaskEvaluationRuntime
     {
         /// <summary>
-        /// Private constructor. Read from config and create ScheduleDefinitions from At objects, plus wire up delegates.
+        /// Creates a runtime backed by the system UTC clock.
         /// </summary>
         public TaskEvaluationRuntime()
+            : this(() => DateTimeOffset.UtcNow)
         {
+        }
+
+        /// <summary>
+        /// Internal clock-injection constructor used by tests to control the current UTC time.
+        /// Production callers use the public constructor above, which supplies DateTimeOffset.UtcNow.
+        /// Keeping the clock behind a delegate lets tests advance retry schedules instantly instead
+        /// of waiting for real second boundaries, without exposing test-only behavior publicly.
+        /// </summary>
+        internal TaskEvaluationRuntime(Func<DateTimeOffset> utcNow)
+        {
+            _utcNow = utcNow ?? throw new ArgumentNullException(nameof(utcNow));
             _runningTasks = new ConcurrentDictionary<Task, Task>();
             _schedule = new ConcurrentDictionary<ScheduleRule, ScheduleEvaluationOptimized>();
         }
+
+        // All scheduler-owned reads of the current time should go through this delegate. In
+        // particular, retries use UtcNow so their due times follow the same injected test clock.
+        private readonly Func<DateTimeOffset> _utcNow;
+        internal DateTimeOffset UtcNow => _utcNow();
 
         /// <summary>
         /// All of the schedules, keyed by ScheduleRule, in a thread-safe Concurrent Dictionary
@@ -80,6 +97,7 @@ namespace TaskSchedulerEngine
             {
                 if (_runState != TaskEvaluationRuntimeState.Stopped)
                     throw new InvalidOperationException("Can only start the service when stopped.");
+                _evaluationLoopCancellationToken = new CancellationTokenSource();
                 _runState = TaskEvaluationRuntimeState.Running;
             }
 
@@ -143,11 +161,17 @@ namespace TaskSchedulerEngine
         private async Task EvaluationLoop()
         {
             Trace.WriteLine("Pump Internal on Thread " + System.Threading.Thread.CurrentThread.ManagedThreadId, "TaskSchedulerEngine");
+            CancellationTokenSource evaluationLoopCancellationToken;
+            lock (_lock_runState)
+            {
+                evaluationLoopCancellationToken = _evaluationLoopCancellationToken
+                    ?? throw new InvalidOperationException("The evaluation loop was started without a cancellation token.");
+            }
             //The first time through, we need to set up the initial values.
 
             //Compute the floor of the current second.
             //There are 10,000,000 ticks per second. Subtract the remainder from now.
-            DateTimeOffset utcNow = DateTimeOffset.UtcNow;
+            DateTimeOffset utcNow = UtcNow;
             DateTimeOffset utcNowFloor = new DateTimeOffset(utcNow.Ticks - (utcNow.Ticks % 10000000), TimeSpan.Zero);
 
             //Compute the floor of the next second, and save it as the nextSecondToEvaluate
@@ -156,12 +180,10 @@ namespace TaskSchedulerEngine
                 _nextSecondToEvaluate = utcNowFloor.AddSeconds(1);
             }
 
-            //Set up a cancellation token for the main loop
-            _evaluationLoopCancellationToken = new CancellationTokenSource();
             try
             {
                 //Begin the evaluation pump
-                while (!_evaluationLoopCancellationToken.IsCancellationRequested)
+                while (!evaluationLoopCancellationToken.IsCancellationRequested)
                 {
                     lock (_lock_runState)
                     {
@@ -176,7 +198,7 @@ namespace TaskSchedulerEngine
                     //In the general case, timeUntilNextEvaluation will be less than one second in the future.
                     lock (_lock_nextSecondToEvaluate)
                     {
-                        utcNow = DateTimeOffset.UtcNow;
+                        utcNow = UtcNow;
                         timeUntilNextEvaluation = _nextSecondToEvaluate - utcNow;
                     }
 
@@ -187,7 +209,7 @@ namespace TaskSchedulerEngine
                         // Await Thread.Delay with cancellation token, and cancel immediately when StopRequest
                         try
                         {
-                            await Task.Delay(timeUntilNextEvaluation, _evaluationLoopCancellationToken.Token);
+                            await Task.Delay(timeUntilNextEvaluation, evaluationLoopCancellationToken.Token);
                         }
                         catch (OperationCanceledException)
                         {
@@ -207,16 +229,19 @@ namespace TaskSchedulerEngine
             }
             finally
             {
-                // Clean up the cancellation token 
-                if (_evaluationLoopCancellationToken != null)
-                    _evaluationLoopCancellationToken.Dispose();
+                lock (_lock_runState)
+                {
+                    evaluationLoopCancellationToken.Dispose();
+                    if (ReferenceEquals(_evaluationLoopCancellationToken, evaluationLoopCancellationToken))
+                        _evaluationLoopCancellationToken = null;
+                }
             }
         }
 
         /// <summary>
         /// Evaluate all of the rules in the schedule and see if they match the specified second. If it matches, spin it off on a new thread. 
         /// </summary>
-        private int Evaluate(DateTimeOffset secondToEvaluate)
+        internal int Evaluate(DateTimeOffset secondToEvaluate)
         {
             //TODO : convert secondToEvaluate to a faster format and avoid the extra bit-shifts downstream.
             int i = 0;
@@ -235,7 +260,7 @@ namespace TaskSchedulerEngine
                 if (match)
                 {
                     var eventArgs = new ScheduleRuleMatchEventArgs(
-                        DateTimeOffset.UtcNow,
+                        UtcNow,
                         secondToEvaluate,
                         Interlocked.Increment(ref TaskEvaluationRuntime.TaskID),
                         scheduleItem.Key,
@@ -246,7 +271,7 @@ namespace TaskSchedulerEngine
                     Task? workerTask = null;
                     try
                     {
-                        var ct = _evaluationLoopCancellationToken.Token;
+                        var ct = _evaluationLoopCancellationToken?.Token ?? CancellationToken.None;
                         // run in it's own task so that any sync code doesn't block the scheduler.
                         workerTask = Task.Run<bool>(() => scheduleItem.Value.Task.OnScheduleRuleMatch(eventArgs, ct), ct);
 
@@ -276,6 +301,18 @@ namespace TaskSchedulerEngine
             }
 
             return i;
+        }
+
+        /// <summary>
+        /// Evaluate one instant and await callbacks dispatched by that evaluation.
+        /// Intended for deterministic unit testing without running the clock-driven loop.
+        /// </summary>
+        internal async Task<int> EvaluateAndWaitAsync(DateTimeOffset secondToEvaluate)
+        {
+            int matchCount = Evaluate(secondToEvaluate);
+            var tasks = new List<Task>(_runningTasks.Keys);
+            await Task.WhenAll(tasks);
+            return matchCount;
         }
 
         /// <summary>

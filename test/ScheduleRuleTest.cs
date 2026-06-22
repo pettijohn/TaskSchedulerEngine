@@ -87,6 +87,9 @@ namespace SchedulerEngineRuntimeTests
             Assert.IsFalse(testResult);
             testResult = evalOptimized.EvaluateRuleMatch(evalTime.AddSeconds(-1));
             Assert.IsFalse(testResult);
+            Assert.IsFalse(evalOptimized.EvaluateRuleMatch(evalTime.AddMinutes(1)));
+            Assert.IsFalse(evalOptimized.EvaluateRuleMatch(evalTime.AddHours(1)));
+            Assert.AreEqual(executeTime.AddMinutes(1), rule.Expiration);
             testResult = evalOptimized.EvaluateRuleMatch(evalTime.AddYears(1));
             Assert.IsFalse(testResult);
         }
@@ -94,12 +97,13 @@ namespace SchedulerEngineRuntimeTests
         [TestMethod]
         public void ExecuteEveryYearsTest()
         {
+            int baseYear = ScheduleRule.MinYear + 1;
             var evalOptimized = new ScheduleEvaluationOptimized(new ScheduleRule()
-                .ExecuteEveryYear(2024, 2025)
+                .ExecuteEveryYear(baseYear, baseYear + 1)
                 .WithUtc()
                 .Execute((e, c) => { return true; }));
 
-            var evalTime = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            var evalTime = new DateTimeOffset(baseYear, 1, 1, 0, 0, 0, TimeSpan.Zero);
             Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime));
             Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime.AddYears(1)));
             Assert.IsFalse(evalOptimized.EvaluateRuleMatch(evalTime.AddYears(2)));
@@ -124,7 +128,7 @@ namespace SchedulerEngineRuntimeTests
                 .ExecuteEveryMonth(1, 2)
                 .WithUtc()
                 .Execute((e, c) => { return true; }));
-            var evalTime = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            var evalTime = new DateTimeOffset(ScheduleRule.MinYear + 1, 1, 1, 0, 0, 0, TimeSpan.Zero);
             Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime));
             Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime.AddMonths(1)));
             Assert.IsFalse(evalOptimized.EvaluateRuleMatch(evalTime.AddMonths(2)));
@@ -149,7 +153,7 @@ namespace SchedulerEngineRuntimeTests
                 .ExecuteEveryDayOfMonth(1, 2)
                 .WithUtc()
                 .Execute((e, c) => { return true; }));
-            var evalTime = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            var evalTime = new DateTimeOffset(ScheduleRule.MinYear + 1, 1, 1, 0, 0, 0, TimeSpan.Zero);
             Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime));
             Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime.AddDays(1)));
             Assert.IsFalse(evalOptimized.EvaluateRuleMatch(evalTime.AddDays(2)));
@@ -168,11 +172,13 @@ namespace SchedulerEngineRuntimeTests
         [TestMethod]
         public void ExecuteEveryDaysOfWeekTest()
         {
+            var evalTime = new DateTimeOffset(ScheduleRule.MinYear + 1, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            int firstDay = (int)evalTime.DayOfWeek;
+            int secondDay = (int)evalTime.AddDays(1).DayOfWeek;
             var evalOptimized = new ScheduleEvaluationOptimized(new ScheduleRule()
-                .ExecuteEveryDayOfWeek(1, 2)
+                .ExecuteEveryDayOfWeek(firstDay, secondDay)
                 .WithUtc()
                 .Execute((e, c) => { return true; }));
-            var evalTime = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
             Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime));
             Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime.AddDays(1)));
             Assert.IsFalse(evalOptimized.EvaluateRuleMatch(evalTime.AddDays(2)));
@@ -181,11 +187,11 @@ namespace SchedulerEngineRuntimeTests
             Assert.IsFalse(evalOptimized.EvaluateRuleMatch(evalTime.AddSeconds(1)));
 
             evalOptimized = new ScheduleEvaluationOptimized(new ScheduleRule()
-                .ExecuteEveryDayOfWeek(1, 2)
+                .ExecuteEveryDayOfWeek()
                 .WithUtc()
                 .Execute((e, c) => { return true; }));
             for(int i=0; i <7;i++)
-                Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime.AddDays(1)));
+                Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime.AddDays(i)));
         }
 
         [TestMethod]
@@ -195,7 +201,7 @@ namespace SchedulerEngineRuntimeTests
                 .ExecuteEveryHour(0, 1)
                 .WithUtc()
                 .Execute((e, c) => { return true; }));
-            var evalTime = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            var evalTime = new DateTimeOffset(ScheduleRule.MinYear + 1, 1, 1, 0, 0, 0, TimeSpan.Zero);
             Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime));
             Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime.AddHours(1)));
             Assert.IsFalse(evalOptimized.EvaluateRuleMatch(evalTime.AddHours(2)));
@@ -220,7 +226,7 @@ namespace SchedulerEngineRuntimeTests
                 .ExecuteEveryMinute(0, 1)
                 .WithUtc()
                 .Execute((e, c) => { return true; }));
-            var evalTime = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            var evalTime = new DateTimeOffset(ScheduleRule.MinYear + 1, 1, 1, 0, 0, 0, TimeSpan.Zero);
             Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime));
             Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime.AddMinutes(1)));
             Assert.IsFalse(evalOptimized.EvaluateRuleMatch(evalTime.AddMinutes(2)));
@@ -241,7 +247,7 @@ namespace SchedulerEngineRuntimeTests
                 .ExecuteEverySecond(0, 1)
                 .WithUtc()
                 .Execute((e, c) => { return true; }));
-            var evalTime = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            var evalTime = new DateTimeOffset(ScheduleRule.MinYear + 1, 1, 1, 0, 0, 0, TimeSpan.Zero);
             for(int i=0; i <10;i++)
                 Assert.IsTrue(evalOptimized.EvaluateRuleMatch(evalTime
                     .AddYears(i)
@@ -390,6 +396,7 @@ namespace SchedulerEngineRuntimeTests
             Assert.IsTrue(rule.DaysOfWeek.Contains(0));
             Assert.IsTrue(rule.DaysOfWeek.Contains(5));
             Assert.IsTrue(rule.DaysOfWeek.Contains(6));
+            CollectionAssert.AreEqual(new int[] { 0 }, rule.Seconds);
         }
 
         [TestMethod]
@@ -433,7 +440,8 @@ namespace SchedulerEngineRuntimeTests
 
             // Adjust rule to a different time zone
             // PST is -8 in winter and -7 in summer
-            var pst = TimeZoneInfo.FindSystemTimeZoneById("America/Los_Angeles");
+            var pst = TimeZoneInfo.CreateCustomTimeZone(
+                "TestPacific", TimeSpan.FromHours(-7), "Test Pacific", "Test Pacific");
             rule.WithTimeZone(pst);
             Assert.IsTrue(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(DateTime.Now.Year, 6, 19, 11, 0, 0, TimeSpan.FromHours(-7))));
             Assert.IsFalse(new ScheduleEvaluationOptimized(rule).EvaluateRuleMatch(new DateTimeOffset(DateTime.Now.Year, 6, 19, 11, 0, 0, TimeSpan.Zero)));

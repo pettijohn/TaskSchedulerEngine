@@ -1,24 +1,16 @@
 using System;
-using System.Text;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TaskSchedulerEngine;
-using System.Threading;
-using System.Globalization;
-using System.Threading.Tasks;
 
 namespace SchedulerEngineRuntimeTests
 {
-    /// <summary>
-    /// Test both human and machine optimized schedule rules. 
-    /// </summary>
     [TestClass]
     public class TaskEvaluationRuntimeTest
     {
-        public TaskEvaluationRuntimeTest()
-        { }
-
         [TestMethod]
         public async Task ExecuteTest()
         {
@@ -31,11 +23,9 @@ namespace SchedulerEngineRuntimeTests
                     return true;
                 });
 
-            var task = runtime.RunAsync();
-            await Task.Delay(1200);
+            int matches = await runtime.EvaluateAndWaitAsync(CurrentTestTime());
 
-            await runtime.StopAsync();
-
+            Assert.AreEqual(1, matches);
             Assert.IsTrue(executed);
         }
 
@@ -47,198 +37,207 @@ namespace SchedulerEngineRuntimeTests
             runtime.CreateSchedule()
                 .Execute(async (e, token) =>
                 {
-                    await Task.Delay(500);
+                    await Task.Yield();
                     executed = true;
                     return true;
                 });
 
-            var task = runtime.RunAsync();
-            await Task.Delay(1200);
+            int matches = await runtime.EvaluateAndWaitAsync(CurrentTestTime());
 
-            await runtime.StopAsync();
-
+            Assert.AreEqual(1, matches);
             Assert.IsTrue(executed);
         }
 
-
         [TestMethod]
-        public void SingleExecutionOnSeparateThreads()
+        public async Task ScheduledTasksExecuteConcurrently()
         {
-            var testThread = System.Threading.Thread.CurrentThread.ManagedThreadId;
-            //Set initial value to same as above, which will fail test if callback fails to update
-            int callbackThread = testThread;
-
+            int activeCallbacks = 0;
+            int maximumConcurrency = 0;
+            int enteredCallbacks = 0;
+            var bothEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseCallbacks = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var runtime = new TaskEvaluationRuntime();
-            runtime.CreateSchedule()
-                .Execute(async (e, token) =>
-                {
-                    callbackThread = System.Threading.Thread.CurrentThread.ManagedThreadId;
-                    e.ScheduleRule.AsActive(false);
-                    return true;
-                });
 
-            var task = runtime.RunAsync();
-            Thread.Sleep(1200);
-            runtime.RequestStop();
-            task.Wait();
+            Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> callback = async (e, token) =>
+            {
+                int active = Interlocked.Increment(ref activeCallbacks);
+                UpdateMaximum(ref maximumConcurrency, active);
+                if (Interlocked.Increment(ref enteredCallbacks) == 2)
+                    bothEntered.TrySetResult(true);
 
-            Assert.AreNotEqual(testThread, callbackThread);
+                await releaseCallbacks.Task;
+                Interlocked.Decrement(ref activeCallbacks);
+                return true;
+            };
+
+            runtime.CreateSchedule().Execute(callback);
+            runtime.CreateSchedule().Execute(callback);
+
+            Task<int> evaluation = runtime.EvaluateAndWaitAsync(CurrentTestTime());
+            await AwaitWithTimeout(bothEntered.Task);
+            releaseCallbacks.SetResult(true);
+
+            Assert.AreEqual(2, await evaluation);
+            Assert.AreEqual(2, maximumConcurrency);
         }
 
         [TestMethod]
-        public void RemoveExpired()
+        public async Task RemoveExpired()
         {
             bool executed = false;
+            DateTimeOffset evaluationTime = CurrentTestTime();
             var runtime = new TaskEvaluationRuntime();
             runtime.CreateSchedule()
-                .ExpiresAfter(DateTimeOffset.Now.AddDays(-1))
-                .Execute(async (e, token) =>
+                .ExpiresAfter(evaluationTime.AddSeconds(-1))
+                .Execute((e, token) =>
                 {
                     executed = true;
                     return true;
                 });
 
-            var task = runtime.RunAsync();
-            Thread.Sleep(1200);
-            runtime.RequestStop();
-            task.Wait();
+            int matches = await runtime.EvaluateAndWaitAsync(evaluationTime);
 
+            Assert.AreEqual(0, matches);
             Assert.IsFalse(executed);
         }
 
         [TestMethod]
-        public async Task TwoLongRunningTasksExecuteSimultaneouslyAndGracefulShutdown()
+        public async Task UnhandledTaskExceptionIsReported()
         {
-            bool executed1 = false;
-            bool executed2 = false;
-            bool gracefulShutdown1 = false;
-            bool gracefulShutdown2 = false;
+            var reportedException = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var runtime = new TaskEvaluationRuntime
+            {
+                UnhandledScheduledTaskException = e => reportedException.TrySetResult(e)
+            };
+            runtime.CreateSchedule()
+                .Execute((Func<ScheduleRuleMatchEventArgs, CancellationToken, bool>)
+                    ((e, token) => throw new InvalidOperationException("Expected test failure")));
 
+            runtime.Evaluate(CurrentTestTime());
+            Exception exception = await AwaitWithTimeout(reportedException.Task);
+
+            Assert.IsTrue(exception.ToString().Contains("Expected test failure"));
+        }
+
+        [TestMethod]
+        public async Task RunAsyncRejectsSecondStartAndReturnsToStopped()
+        {
             var runtime = new TaskEvaluationRuntime();
-            runtime.CreateSchedule()
-                .Execute(async (e, token) =>
-                {
-                    executed1 = true;
-                    e.ScheduleRule.AsActive(false);
-                    try
-                    {
-                        await Task.Delay(3000, token);
-                    }
-                    catch (TaskCanceledException err)
-                    {
-                        gracefulShutdown1 = true;
-                    }
-                    return true;
-                });
 
-            runtime.CreateSchedule()
-                .Execute(async (e, token) =>
-                {
-                    executed2 = true;
-                    e.ScheduleRule.AsActive(false);
-                    try
-                    {
-                        await Task.Delay(3000, token);
-                    }
-                    catch (TaskCanceledException err)
-                    {
-                        gracefulShutdown2 = true;
-                    }
+            Task run = runtime.RunAsync();
+            await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => runtime.RunAsync());
+            Assert.IsTrue(runtime.RequestStop());
+            await run;
 
-                    return true;
-                });
+            Assert.IsTrue(runtime.Stopped);
+        }
 
-            var task = runtime.RunAsync();
-            await Task.Delay(1200); // sleep here req'd otherwise race condition will stop before start
-            await runtime.StopAsync();
+        [TestMethod]
+        public async Task RequestStopReflectsLifecycleState()
+        {
+            var runtime = new TaskEvaluationRuntime();
 
-            Assert.IsNotNull(executed1);
-            Assert.IsTrue(executed2);
-            Assert.IsTrue(gracefulShutdown1);
-            Assert.IsTrue(gracefulShutdown2);
+            Assert.IsTrue(runtime.Stopped);
+            Assert.IsFalse(runtime.RequestStop());
+
+            Task run = runtime.RunAsync();
+            Assert.IsTrue(runtime.RequestStop());
+            Assert.IsFalse(runtime.RequestStop());
+            await run;
+
+            Assert.IsTrue(runtime.Stopped);
+        }
+
+        [TestMethod]
+        public async Task RuntimeCanRestartAfterStopping()
+        {
+            var runtime = new TaskEvaluationRuntime();
+
+            Task firstRun = runtime.RunAsync();
+            Assert.IsTrue(runtime.RequestStop());
+            await firstRun;
+
+            Task secondRun = runtime.RunAsync();
+            Assert.IsTrue(runtime.RequestStop());
+            await secondRun;
+
+            Assert.IsTrue(runtime.Stopped);
         }
 
         [TestMethod]
         public async Task ExponentialBackoffTaskTest()
         {
-            var invoked = new List<DateTimeOffset>();
-            var startFrom = DateTimeOffset.UtcNow.AddSeconds(1);
-            var runtime = new TaskEvaluationRuntime();
-            runtime.CreateSchedule()
-                .ExecuteOnceAt(startFrom)
-                .ExecuteAndRetry((e, _) =>
-                    {
-                        // Do something that may fail like a network call - catch & gracefully fail by returning false.
-                        // Exponential backoff task will retry up to maxAttempts times. 
-                        invoked.Add(e.TimeScheduledUtc);
-                        return false;
-                    },
-                    4, // max attempts
-                    2  // base retry interval
-                );
-
-            // Retry logic: baseRetrySeconds*(2^retryCount) seconds
-            // Task should execute at 0, 2, 4, 8 second intervals  
-
-            var task = runtime.RunAsync();
-            await Task.Delay(23000); // wait for retries - long enough for an incorrect fifth invocation. 
-            await runtime.StopAsync();
-            await task;
-
-            Console.WriteLine(startFrom);
-            for (int i = 0; i < invoked.Count; i++)
+            await AssertRetrySchedule(async (e, token) =>
             {
-                Console.WriteLine($"{i}: {(invoked[i] - invoked[0]).TotalSeconds}");
-            }
-
-            Assert.AreEqual(4, invoked.Count);
-            CollectionAssert.AllItemsAreUnique(invoked);
-            // Should be about 14 seconds between first and last - with a little wiggle room 
-            var span = invoked.Last() - invoked.First();
-            Console.WriteLine($"Retry total duration: {span.TotalSeconds}");
-            Assert.IsTrue(span > TimeSpan.FromSeconds(12) && span < TimeSpan.FromSeconds(16));
+                await Task.Yield();
+                return false;
+            });
         }
 
         [TestMethod]
-        public async Task ExponentialBackoffTaskAsyncTest()
+        public async Task ExponentialBackoffSynchronousTaskTest()
         {
-            var invoked = new List<DateTimeOffset>();
-            var startFrom = DateTimeOffset.UtcNow.AddSeconds(1);
-            var runtime = new TaskEvaluationRuntime();
+            await AssertRetrySchedule((e, token) => Task.FromResult(false));
+        }
+
+        private static async Task AssertRetrySchedule(
+            Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> callback)
+        {
+            DateTimeOffset now = CurrentTestTime();
+            DateTimeOffset firstAttempt = now;
+            var invoked = new ConcurrentQueue<DateTimeOffset>();
+            var runtime = new TaskEvaluationRuntime(() => now);
             runtime.CreateSchedule()
-                .ExecuteOnceAt(startFrom)
-                .ExecuteAndRetry(async (e, _) =>
+                .ExecuteOnceAt(firstAttempt)
+                .ExecuteAndRetry(async (e, token) =>
                 {
-                    await Task.Delay(1);
-                    // Do something that may fail like a network call - catch & gracefully fail by returning false.
-                    // Exponential backoff task will retry up to maxAttempts times. 
-                    invoked.Add(e.TimeScheduledUtc);
-                    return false;
-                },
-                    4, // max attempts
-                    2  // base retry interval
-                );
+                    invoked.Enqueue(e.TimeScheduledUtc);
+                    return await callback(e, token);
+                }, maxAttempts: 4, baseRetryIntervalSeconds: 2);
 
-            // Retry logic: baseRetrySeconds*(2^retryCount) seconds
-            // Task should execute at 0, 2, 4, 8 second intervals  
+            Assert.AreEqual(1, await runtime.EvaluateAndWaitAsync(now));
+            now = firstAttempt.AddSeconds(2);
+            Assert.AreEqual(1, await runtime.EvaluateAndWaitAsync(now));
+            now = firstAttempt.AddSeconds(6);
+            Assert.AreEqual(1, await runtime.EvaluateAndWaitAsync(now));
+            now = firstAttempt.AddSeconds(14);
+            Assert.AreEqual(1, await runtime.EvaluateAndWaitAsync(now));
+            now = firstAttempt.AddSeconds(30);
+            Assert.AreEqual(0, await runtime.EvaluateAndWaitAsync(now));
 
-            var task = runtime.RunAsync();
-            await Task.Delay(23000); // wait for retries - long enough for an incorrect fifth invocation. 
-            await runtime.StopAsync();
+            CollectionAssert.AreEqual(
+                new[] { 0d, 2d, 6d, 14d },
+                invoked.Select(value => (value - firstAttempt).TotalSeconds).ToArray());
+        }
+
+        private static DateTimeOffset CurrentTestTime()
+        {
+            return new DateTimeOffset(ScheduleRule.MinYear + 1, 6, 15, 12, 0, 0, TimeSpan.Zero);
+        }
+
+        private static async Task AwaitWithTimeout(Task task)
+        {
+            Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(2)));
+            Assert.AreSame(task, completed, "Timed out waiting for asynchronous test work.");
             await task;
+        }
 
-            Console.WriteLine(startFrom);
-            for (int i = 0; i < invoked.Count; i++)
+        private static async Task<T> AwaitWithTimeout<T>(Task<T> task)
+        {
+            await AwaitWithTimeout((Task)task);
+            return await task;
+        }
+
+        private static void UpdateMaximum(ref int maximum, int candidate)
+        {
+            int observed;
+            do
             {
-                Console.WriteLine($"{i}: {(invoked[i] - invoked[0]).TotalSeconds}");
+                observed = maximum;
+                if (candidate <= observed)
+                    return;
             }
-
-            Assert.AreEqual(4, invoked.Count);
-            CollectionAssert.AllItemsAreUnique(invoked);
-            // Should be about 14 seconds between first and last - with a little wiggle room 
-            var span = invoked.Last() - invoked.First();
-            Console.WriteLine($"Retry total duration: {span.TotalSeconds}");
-            Assert.IsTrue(span > TimeSpan.FromSeconds(12) && span < TimeSpan.FromSeconds(16));
+            while (Interlocked.CompareExchange(ref maximum, candidate, observed) != observed);
         }
     }
 }

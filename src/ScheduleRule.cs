@@ -241,6 +241,8 @@ namespace TaskSchedulerEngine
             var s = this.AtYears(time.Year)
                 .AtMonths(time.Month)
                 .AtDaysOfMonth(time.Day)
+                .AtHours(time.Hour)
+                .AtMinutes(time.Minute)
                 .AtSeconds(time.Second)
                 .WithUtc()
                 .ExpiresAfter(time.AddMinutes(1));
