@@ -1,9 +1,9 @@
 # TaskSchedulerEngine
 
-A lightweight (zero dependencies, <400 lines of code) cron-like scheduler for in-memory scheduling of your code with second-level precision. 
-Implement IScheduledTask or provide a callback, define a ScheduleRule, and Start the runtime. 
-Schedule Rule evaluation is itself lightweight with bitwise evaluation of "now" against the rules (see ScheduleRuleEvaluationOptimized). 
-Each invoked ScheduledTask runs on its own thread so long running tasks won't block other tasks. 
+A lightweight (zero dependencies, <400 lines of code) cron-like scheduler for in-memory scheduling of your code with second-level precision.
+Implement IScheduledTask or provide a callback, define a ScheduleRule, and Start the runtime.
+Schedule Rule evaluation is itself lightweight with bitwise evaluation of "now" against the rules (see ScheduleRuleEvaluationOptimized).
+Each invoked ScheduledTask runs on its own thread so long running tasks won't block other tasks.
 Targets .NET Core 3.1, .NET 6, .NET 7 (and presumably everything in between).
 
 ## Quick Start
@@ -29,12 +29,12 @@ static async Task Main(string[] args)
     .AtMinutes(0, 10, 20, 30, 40, 50)
     // .AtMonths(), .AtDays(), AtDaysOfWeek() ... etc
     // Important note that unset is always *, so if you omit AtSeconds(0) it will execute every second
-    .WithName("EveryTenMinutes") // Optional ID for your reference 
+    .WithName("EveryTenMinutes") // Optional ID for your reference
     .WithTimeZone(TimeZoneInfo.Utc) // Or string such as "America/Los_Angeles"
     .Execute(async (e, token) => {
       if(!token.IsCancellationRequested)
         Console.WriteLine($"{e.TaskId}: Event intended for {e.TimeScheduledUtc:o} occurred at {e.TimeSignaledUtc:o}");
-        return true; // Return success. Used by retry scenarios. 
+        return true; // Return success. Used by retry scenarios.
     });
 
   var s2 = runtime.CreateSchedule()
@@ -44,38 +44,38 @@ static async Task Main(string[] args)
   var s3 = runtime.CreateSchedule()
     .ExecuteOnceAt(DateTimeOffset.UtcNow.AddSeconds(1))
     .ExecuteAndRetry(
-      async (e, _) => { 
+      async (e, _) => {
           // Do something that may fail like a network call - catch & gracefully fail by returning false.
-          // Exponential backoff task will retry up to MaxAttempts times. 
-          return false; 
+          // Exponential backoff task will retry up to MaxAttempts times.
+          return false;
       },
-      4, // MaxAttempts, inclusive of initial attempt 
+      4, // MaxAttempts, inclusive of initial attempt
       2  // BaseRetryIntervalSeconds
-         // Retry delay logic: baseRetrySeconds * (2^retryCount) 
+         // Retry delay logic: baseRetrySeconds * (2^retryCount)
          // In this case will retry after 2, 4, 8 second waits
     );
 
-  // You can also create rules from cron expressions; * or comma separated lists are supported 
-  // (/ and - are NOT supported). 
+  // You can also create rules from cron expressions; * or comma separated lists are supported
+  // (/ and - are NOT supported).
   // Format: minute (0..59), hour (0..23), dayOfMonth (1..31), month (1..12), dayOfWeek (0=Sunday..6).
   // Seconds will always be zero.
   var s4 = runtime.CreateSchedule()
     .FromCron("0,20,40 * * * *")
-    .WithName("Every20Sec") //Optional ID for your reference 
+    .WithName("Every20Sec") //Optional ID for your reference
     .Execute(async (e, token) => {
       if(!token.IsCancellationRequested)
         Console.WriteLine($"Load me from config and change me without recompiling!");
-        return true; 
+        return true;
     });
 
-  // Finally, there are helper methods ExecuteEvery*() that execute a task at a given interval. 
+  // Finally, there are helper methods ExecuteEvery*() that execute a task at a given interval.
   var s4 = runtime.CreateSchedule()
     // Run the task a 0 minutes and 0 seconds past the hours 0, 6, 12, and 18
-    .ExecuteEveryHour(0, 6, 12, 18) 
+    .ExecuteEveryHour(0, 6, 12, 18)
     .Execute(async (e, token) => {
-        return true; 
+        return true;
     });
-  
+
   // Handle the shutdown event (CTRL+C, SIGHUP) if graceful shutdown desired
   AppDomain.CurrentDomain.ProcessExit += (s, e) => runtime.RequestStop();
 
@@ -84,7 +84,7 @@ static async Task Main(string[] args)
 
   // Listen for some signal to quit
   Thread.Sleep(30000);
-  
+
   // Graceful shutdown. Request a stop and await running tasks.
   await runtime.StopAsync();
 }
@@ -99,33 +99,58 @@ static async Task Main(string[] args)
 
 ## Troubleshooting
 
-* *My task is executing every second, but I scheduled it to run with a different interval.* - You probably need to add .AtSeconds(0). Unspecified/unset/null is always treated as */every. See example above, `EveryTenMinutes`. While there are other ways to solve this problem, this encourages verbosity. Like Cron, consider being verbose and setting every parameter every time. 
+* *My task is executing every second, but I scheduled it to run with a different interval.* - You probably need to add .AtSeconds(0). Unspecified/unset/null is always treated as */every. See example above, `EveryTenMinutes`. While there are other ways to solve this problem, this encourages verbosity. Like Cron, consider being verbose and setting every parameter every time.
 
 ## Runtime Lifecycle
 
 * Instantiate TaskEvaluationRuntime and use RunAsync(), optionally RequestStop(), and StopAsync() for start and graceful shutdown.
-* TaskEvaluationRuntime moves through four states: 
+* TaskEvaluationRuntime moves through four states:
   * Stopped: nothing happening, can Start back into a running state.
   * Running: evaluating every second
-  * StopRequested: instructs the every-second evaluation loop to quit and initiates a cancellation request on the cancellation token that all running tasks have access to. 
+  * StopRequested: instructs the every-second evaluation loop to quit and initiates a cancellation request on the cancellation token that all running tasks have access to.
   * StoppingGracefully: waiting for executing tasks to complete
   * Back to Stopped.
-* RunAsync creates a background thread to evaluate rules. RequestStop requests the background thread to stop. Control is then handed back to RunAsync which waits for all running tasks to complete. Then control is returned from RunAsync to the awaiting caller. 
+* RunAsync creates a background thread to evaluate rules. RequestStop requests the background thread to stop. Control is then handed back to RunAsync which waits for all running tasks to complete. Then control is returned from RunAsync to the awaiting caller.
 
-Validation is basic, so it's possible to create rules that never fire, e.g., on day 31 of February. 
+## Catch-up behavior
 
-## Changes
-* June 2023: 
+By default, the runtime processes every scheduled second. If the evaluation loop falls behind because the process was paused, the machine was overloaded, or callbacks created enough pressure to delay evaluation, it will replay missed seconds in order. This can intentionally dispatch a large number of tasks; scheduled task implementations should be thread-safe and should apply their own non-overlap or singleton behavior when needed.
+
+The runtime reports backlog episodes through `Trace` and the `ScheduleCatchUpWarning` event once the backlog reaches `CatchUpWarningThreshold` (60 seconds by default):
+
+```C#
+runtime.ScheduleCatchUpWarning += (sender, e) =>
+{
+  Console.WriteLine($"Scheduler backlog: {e.Backlog.TotalSeconds} seconds, policy={e.Policy}, skipped={e.SkippedSeconds}");
+};
+```
+
+To skip older missed seconds instead of replaying the full backlog, opt into the skip policy:
+
+```C#
+runtime.CatchUpWarningThreshold = TimeSpan.FromSeconds(30);
+runtime.CatchUpPolicy = ScheduleCatchUpPolicy.SkipToLatestSecond;
+```
+
+`SkipToLatestSecond` evaluates the most recent whole UTC second and advances from there; it does not dispatch callbacks for older skipped seconds.
+
+Validation is basic, so it's possible to create rules that never fire, e.g., on day 31 of February.
+
+## Changelog
+* June 2026:
+  * Hardened unit tests with Codex 5.5
+  * Added catch-up policy
+* June 2023:
   * Updated to include .NET 7.
   * Added cron string parsing.
-  * Changed interface; use the runtime to CreateSchedule(), which will automatically add it to the runtime and update it on every configuration change. Instead of removing, call .AsActive(bool). 
+  * Changed interface; use the runtime to CreateSchedule(), which will automatically add it to the runtime and update it on every configuration change. Instead of removing, call .AsActive(bool).
   * Added arbitrary timezone support (previously only local and UTC supported) [ref](https://learn.microsoft.com/en-us/dotnet/api/system.timezoneinfo.findsystemtimezonebyid?view=net-7.0)
 
 ## A note on the 2010 vs 2021 versions
 
-Circa 2010, this project lived on Codeplex and ran on .NET Framework 4. An old [version 1.0.0 still lives on Nuget](https://www.nuget.org/packages/TaskSchedulerEngine/1.0.0). 
+Circa 2010, this project lived on Codeplex and ran on .NET Framework 4. An old [version 1.0.0 still lives on Nuget](https://www.nuget.org/packages/TaskSchedulerEngine/1.0.0).
 The 2021 edition of this project runs on .NET Core 3.1 and .NET 6. A lot has changed in the intervening years, namely how multithreaded programming
 is accomplished in .NET (async/await didn't launch until C# 5.0 in 2012). While upgrading .NET 6, I simplified the code, the end result being:
-this library is incompatible with the 2010 version. While the core logic and the fluent API remain very similar, the 
-class names are incompatible, ITask has changed, and some of the multithreading behaviors are different. 
-This should be considered a *new* library that happens to share a name and some roots with the old one. 
+this library is incompatible with the 2010 version. While the core logic and the fluent API remain very similar, the
+class names are incompatible, ITask has changed, and some of the multithreading behaviors are different.
+This should be considered a *new* library that happens to share a name and some roots with the old one.

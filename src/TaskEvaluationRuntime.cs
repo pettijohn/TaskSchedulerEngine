@@ -80,6 +80,38 @@ namespace TaskSchedulerEngine
         public Action<Exception>? UnhandledScheduledTaskException;
 
         private CancellationTokenSource? _evaluationLoopCancellationToken;
+        private TimeSpan _catchUpWarningThreshold = TimeSpan.FromSeconds(60);
+        private bool _catchUpWarningActive;
+
+        /// <summary>
+        /// Controls how the runtime handles missed seconds after the evaluation loop falls behind.
+        /// The default preserves the original behavior and replays every missed second in order.
+        /// </summary>
+        public ScheduleCatchUpPolicy CatchUpPolicy { get; set; } = ScheduleCatchUpPolicy.ReplayAllMissedSeconds;
+
+        /// <summary>
+        /// Backlog duration that causes the runtime to report a catch-up warning.
+        /// </summary>
+        public TimeSpan CatchUpWarningThreshold
+        {
+            get
+            {
+                return _catchUpWarningThreshold;
+            }
+            set
+            {
+                if (value <= TimeSpan.Zero)
+                    throw new ArgumentOutOfRangeException(nameof(value), "Catch-up warning threshold must be greater than zero.");
+
+                _catchUpWarningThreshold = value;
+            }
+        }
+
+        /// <summary>
+        /// Raised when the evaluation loop detects a missed-second backlog at or above
+        /// <see cref="CatchUpWarningThreshold"/>.
+        /// </summary>
+        public event EventHandler<ScheduleCatchUpEventArgs>? ScheduleCatchUpWarning;
 
         /// <summary>
         /// Keep a counter of how many Tasks have executed. Each Task invocation will have a unique sequential ID.
@@ -172,7 +204,7 @@ namespace TaskSchedulerEngine
             //Compute the floor of the current second.
             //There are 10,000,000 ticks per second. Subtract the remainder from now.
             DateTimeOffset utcNow = UtcNow;
-            DateTimeOffset utcNowFloor = new DateTimeOffset(utcNow.Ticks - (utcNow.Ticks % 10000000), TimeSpan.Zero);
+            DateTimeOffset utcNowFloor = FloorUtcSecond(utcNow);
 
             //Compute the floor of the next second, and save it as the nextSecondToEvaluate
             lock (_lock_nextSecondToEvaluate)
@@ -219,12 +251,7 @@ namespace TaskSchedulerEngine
 
                     //TODO : use a stopwatch to capture how long the Evaluate method takes and publish a perf counter.
                     // "Percent time spent in evaluation." If it gets close to a second, we're in trouble. 
-                    Evaluate(_nextSecondToEvaluate);
-
-                    lock (_lock_nextSecondToEvaluate)
-                    {
-                        _nextSecondToEvaluate = _nextSecondToEvaluate.AddSeconds(1);
-                    }
+                    EvaluateNextDueSecond(UtcNow);
                 }
             }
             finally
@@ -235,6 +262,130 @@ namespace TaskSchedulerEngine
                     if (ReferenceEquals(_evaluationLoopCancellationToken, evaluationLoopCancellationToken))
                         _evaluationLoopCancellationToken = null;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Normalize a clock reading to the exact whole UTC second that has already occurred.
+        /// Schedule evaluation is second-granular, so fractional ticks should never influence
+        /// whether a rule matches or how far behind the evaluation loop appears to be.
+        /// </summary>
+        private static DateTimeOffset FloorUtcSecond(DateTimeOffset utcNow)
+        {
+            DateTimeOffset utc = utcNow.ToUniversalTime();
+            return new DateTimeOffset(utc.Ticks - (utc.Ticks % TimeSpan.TicksPerSecond), TimeSpan.Zero);
+        }
+
+        /// <summary>
+        /// Evaluate one due second according to the active catch-up policy, then advance the cursor.
+        /// In the normal case this evaluates exactly _nextSecondToEvaluate. If the runtime has fallen
+        /// behind, GetSecondToEvaluate decides whether to replay that oldest missed second or skip ahead.
+        /// </summary>
+        private int EvaluateNextDueSecond(DateTimeOffset utcNow)
+        {
+            DateTimeOffset secondToEvaluate;
+            DateTimeOffset latestDueSecond = FloorUtcSecond(utcNow);
+
+            lock (_lock_nextSecondToEvaluate)
+            {
+                // The loop can arrive here with a slightly early clock reading after a short delay.
+                // In that case there is nothing due yet, so leave the cursor untouched.
+                if (_nextSecondToEvaluate > utcNow)
+                    return 0;
+
+                secondToEvaluate = GetSecondToEvaluate(latestDueSecond);
+            }
+
+            // Evaluate outside the cursor lock so task dispatch and schedule enumeration do not block
+            // callers that need to inspect or update scheduler timing state.
+            int matchCount = Evaluate(secondToEvaluate);
+
+            lock (_lock_nextSecondToEvaluate)
+            {
+                // Advance from the actual evaluated second. This preserves replay behavior by moving
+                // one second at a time, and makes skip mode land immediately after the latest due second.
+                _nextSecondToEvaluate = secondToEvaluate.AddSeconds(1);
+            }
+
+            return matchCount;
+        }
+
+        /// <summary>
+        /// Choose the next second to evaluate and raise at most one warning for a continuous backlog.
+        /// The default policy returns the oldest missed second so existing "replay every second" behavior
+        /// is preserved. Skip mode returns latestDueSecond once the configured threshold is exceeded.
+        /// </summary>
+        private DateTimeOffset GetSecondToEvaluate(DateTimeOffset latestDueSecond)
+        {
+            DateTimeOffset originalNextSecondToEvaluate = _nextSecondToEvaluate;
+            TimeSpan backlog = latestDueSecond - originalNextSecondToEvaluate;
+            bool thresholdExceeded = backlog >= CatchUpWarningThreshold;
+            bool skipApplied = thresholdExceeded && CatchUpPolicy == ScheduleCatchUpPolicy.SkipToLatestSecond;
+
+            if (thresholdExceeded)
+            {
+                if (!_catchUpWarningActive)
+                {
+                    // In skip mode, backlog.TotalSeconds is the count of old seconds being skipped:
+                    // originalNextSecondToEvaluate through the second before latestDueSecond.
+                    long skippedSeconds = skipApplied ? Convert.ToInt64(backlog.TotalSeconds) : 0;
+                    ReportCatchUpWarning(
+                        originalNextSecondToEvaluate,
+                        latestDueSecond,
+                        backlog,
+                        skippedSeconds,
+                        skipApplied);
+                    _catchUpWarningActive = true;
+                }
+
+                if (skipApplied)
+                    return latestDueSecond;
+            }
+            else
+            {
+                // Reset once the runtime has caught up enough that a later backlog episode is reported.
+                _catchUpWarningActive = false;
+            }
+
+            return originalNextSecondToEvaluate;
+        }
+
+        /// <summary>
+        /// Publish catch-up diagnostics without taking a dependency on a logging abstraction.
+        /// Consumers can subscribe to ScheduleCatchUpWarning and bridge it to their logger of choice;
+        /// Trace keeps the existing lightweight diagnostics path for this dependency-free library.
+        /// </summary>
+        private void ReportCatchUpWarning(
+            DateTimeOffset originalNextSecondToEvaluate,
+            DateTimeOffset latestDueSecond,
+            TimeSpan backlog,
+            long skippedSeconds,
+            bool skipApplied)
+        {
+            var eventArgs = new ScheduleCatchUpEventArgs(
+                UtcNow,
+                originalNextSecondToEvaluate,
+                latestDueSecond,
+                backlog,
+                CatchUpPolicy,
+                skippedSeconds,
+                skipApplied);
+
+            Trace.WriteLine(
+                $"Schedule catch-up backlog detected. BacklogSeconds={backlog.TotalSeconds}, Policy={CatchUpPolicy}, SkipApplied={skipApplied}, SkippedSeconds={skippedSeconds}, OriginalNextSecondUtc={originalNextSecondToEvaluate:o}, LatestDueSecondUtc={latestDueSecond:o}",
+                "TaskSchedulerEngine");
+
+            try
+            {
+                ScheduleCatchUpWarning?.Invoke(this, eventArgs);
+            }
+            catch (Exception e)
+            {
+                // Diagnostic event handlers are user code. Treat failures the same way as scheduled
+                // task failures: report them, but never let them terminate the evaluation loop.
+                Trace.WriteLine("Unhandled exception in ScheduleCatchUpWarning handler: " + e, "TaskSchedulerEngine");
+                if (UnhandledScheduledTaskException != null)
+                    UnhandledScheduledTaskException(e);
             }
         }
 
@@ -310,6 +461,22 @@ namespace TaskSchedulerEngine
         internal async Task<int> EvaluateAndWaitAsync(DateTimeOffset secondToEvaluate)
         {
             int matchCount = Evaluate(secondToEvaluate);
+            var tasks = new List<Task>(_runningTasks.Keys);
+            await Task.WhenAll(tasks);
+            return matchCount;
+        }
+
+        internal void SetNextSecondToEvaluate(DateTimeOffset nextSecondToEvaluate)
+        {
+            lock (_lock_nextSecondToEvaluate)
+            {
+                _nextSecondToEvaluate = nextSecondToEvaluate;
+            }
+        }
+
+        internal async Task<int> EvaluateNextDueSecondAndWaitAsync(DateTimeOffset utcNow)
+        {
+            int matchCount = EvaluateNextDueSecond(utcNow);
             var tasks = new List<Task>(_runningTasks.Keys);
             await Task.WhenAll(tasks);
             return matchCount;

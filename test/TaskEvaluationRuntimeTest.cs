@@ -165,6 +165,117 @@ namespace SchedulerEngineRuntimeTests
         }
 
         [TestMethod]
+        public async Task CatchUpDefaultPolicyWarnsAndReplaysOldestMissedSecond()
+        {
+            DateTimeOffset firstMissedSecond = CurrentTestTime();
+            DateTimeOffset utcNow = firstMissedSecond.AddSeconds(120);
+            var invoked = new ConcurrentQueue<DateTimeOffset>();
+            var warnings = new ConcurrentQueue<ScheduleCatchUpEventArgs>();
+            var runtime = new TaskEvaluationRuntime(() => utcNow)
+            {
+                CatchUpWarningThreshold = TimeSpan.FromSeconds(60)
+            };
+            runtime.ScheduleCatchUpWarning += (sender, e) => warnings.Enqueue(e);
+            runtime.SetNextSecondToEvaluate(firstMissedSecond);
+            runtime.CreateSchedule()
+                .Execute((e, token) =>
+                {
+                    invoked.Enqueue(e.TimeScheduledUtc);
+                    return true;
+                });
+
+            int matches = await runtime.EvaluateNextDueSecondAndWaitAsync(utcNow);
+
+            Assert.AreEqual(1, matches);
+            Assert.IsTrue(warnings.TryPeek(out ScheduleCatchUpEventArgs warning));
+            Assert.AreEqual(ScheduleCatchUpPolicy.ReplayAllMissedSeconds, warning.Policy);
+            Assert.AreEqual(TimeSpan.FromSeconds(120), warning.Backlog);
+            Assert.AreEqual(0, warning.SkippedSeconds);
+            Assert.IsFalse(warning.SkipApplied);
+            CollectionAssert.AreEqual(new[] { firstMissedSecond }, invoked.ToArray());
+        }
+
+        [TestMethod]
+        public async Task CatchUpWarningDoesNotSpamDuringSameBacklogEpisode()
+        {
+            DateTimeOffset firstMissedSecond = CurrentTestTime();
+            DateTimeOffset utcNow = firstMissedSecond.AddSeconds(120);
+            int warnings = 0;
+            var runtime = new TaskEvaluationRuntime(() => utcNow)
+            {
+                CatchUpWarningThreshold = TimeSpan.FromSeconds(60)
+            };
+            runtime.ScheduleCatchUpWarning += (sender, e) => warnings++;
+            runtime.SetNextSecondToEvaluate(firstMissedSecond);
+            runtime.CreateSchedule().Execute((e, token) => true);
+
+            Assert.AreEqual(1, await runtime.EvaluateNextDueSecondAndWaitAsync(utcNow));
+            Assert.AreEqual(1, await runtime.EvaluateNextDueSecondAndWaitAsync(utcNow));
+
+            Assert.AreEqual(1, warnings);
+        }
+
+        [TestMethod]
+        public async Task CatchUpSkipPolicyEvaluatesLatestDueSecond()
+        {
+            DateTimeOffset firstMissedSecond = CurrentTestTime();
+            DateTimeOffset utcNow = firstMissedSecond.AddSeconds(120);
+            var invoked = new ConcurrentQueue<DateTimeOffset>();
+            var warnings = new ConcurrentQueue<ScheduleCatchUpEventArgs>();
+            var runtime = new TaskEvaluationRuntime(() => utcNow)
+            {
+                CatchUpPolicy = ScheduleCatchUpPolicy.SkipToLatestSecond,
+                CatchUpWarningThreshold = TimeSpan.FromSeconds(60)
+            };
+            runtime.ScheduleCatchUpWarning += (sender, e) => warnings.Enqueue(e);
+            runtime.SetNextSecondToEvaluate(firstMissedSecond);
+            runtime.CreateSchedule()
+                .Execute((e, token) =>
+                {
+                    invoked.Enqueue(e.TimeScheduledUtc);
+                    return true;
+                });
+
+            Assert.AreEqual(1, await runtime.EvaluateNextDueSecondAndWaitAsync(utcNow));
+            Assert.AreEqual(0, await runtime.EvaluateNextDueSecondAndWaitAsync(utcNow));
+
+            Assert.IsTrue(warnings.TryPeek(out ScheduleCatchUpEventArgs warning));
+            Assert.AreEqual(ScheduleCatchUpPolicy.SkipToLatestSecond, warning.Policy);
+            Assert.AreEqual(TimeSpan.FromSeconds(120), warning.Backlog);
+            Assert.AreEqual(120, warning.SkippedSeconds);
+            Assert.IsTrue(warning.SkipApplied);
+            CollectionAssert.AreEqual(new[] { utcNow }, invoked.ToArray());
+        }
+
+        [TestMethod]
+        public async Task CatchUpDoesNotWarnBelowThreshold()
+        {
+            DateTimeOffset firstMissedSecond = CurrentTestTime();
+            DateTimeOffset utcNow = firstMissedSecond.AddSeconds(59);
+            int warnings = 0;
+            var runtime = new TaskEvaluationRuntime(() => utcNow)
+            {
+                CatchUpWarningThreshold = TimeSpan.FromSeconds(60)
+            };
+            runtime.ScheduleCatchUpWarning += (sender, e) => warnings++;
+            runtime.SetNextSecondToEvaluate(firstMissedSecond);
+            runtime.CreateSchedule().Execute((e, token) => true);
+
+            Assert.AreEqual(1, await runtime.EvaluateNextDueSecondAndWaitAsync(utcNow));
+
+            Assert.AreEqual(0, warnings);
+        }
+
+        [TestMethod]
+        public void CatchUpWarningThresholdRejectsZeroOrNegativeValues()
+        {
+            var runtime = new TaskEvaluationRuntime();
+
+            Assert.ThrowsException<ArgumentOutOfRangeException>(() => runtime.CatchUpWarningThreshold = TimeSpan.Zero);
+            Assert.ThrowsException<ArgumentOutOfRangeException>(() => runtime.CatchUpWarningThreshold = TimeSpan.FromSeconds(-1));
+        }
+
+        [TestMethod]
         public async Task ExponentialBackoffTaskTest()
         {
             await AssertRetrySchedule(async (e, token) =>

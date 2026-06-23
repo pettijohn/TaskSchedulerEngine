@@ -16,7 +16,8 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "openai.chatgpt"
+        "openai.chatgpt",
+        "ms-dotnettools.csdevkit"
       ],
       "settings": {
         "editor.formatOnSave": true,
