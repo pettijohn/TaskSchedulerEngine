@@ -25,4 +25,4 @@ dotnet nuget push --source https://api.nuget.org/v3/index.json --api-key $apiKey
 git tag $versionNum
 git commit -a -m "${versionNum}"
 git push
-git push --tags 
+git push --tags
