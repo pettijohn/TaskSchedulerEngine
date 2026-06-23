@@ -1,6 +1,6 @@
 # TaskSchedulerEngine
 
-A lightweight (zero dependencies, <400 lines of code) cron-like scheduler for in-memory scheduling of your code with second-level precision.
+A lightweight (zero dependencies, core logic is <400 lines of code) cron-like scheduler for in-memory scheduling of your code with second-level precision.
 Implement IScheduledTask or provide a callback, define a ScheduleRule, and Start the runtime.
 Schedule Rule evaluation is itself lightweight with bitwise evaluation of "now" against the rules (see ScheduleRuleEvaluationOptimized).
 Each invoked ScheduledTask runs on its own thread so long running tasks won't block other tasks.
@@ -76,17 +76,13 @@ static async Task Main(string[] args)
         return true;
     });
 
-  // Handle the shutdown event (CTRL+C, SIGHUP) if graceful shutdown desired
-  AppDomain.CurrentDomain.ProcessExit += (s, e) => runtime.RequestStop();
+  using var cts = new CancellationTokenSource();
 
-  // Await the runtime.
-  await runtime.RunAsync();
+  // Handle the shutdown event (CTRL+C, SIGHUP) if graceful shutdown desired.
+  AppDomain.CurrentDomain.ProcessExit += (s, e) => cts.Cancel();
 
-  // Listen for some signal to quit
-  Thread.Sleep(30000);
-
-  // Graceful shutdown. Request a stop and await running tasks.
-  await runtime.StopAsync();
+  // Await the runtime. Cancel cts or call RequestStop() to stop.
+  await runtime.RunAsync(cts.Token);
 }
 ```
 
@@ -103,14 +99,16 @@ static async Task Main(string[] args)
 
 ## Runtime Lifecycle
 
-* Instantiate TaskEvaluationRuntime and use RunAsync(), optionally RequestStop(), and StopAsync() for start and graceful shutdown.
+* Instantiate TaskEvaluationRuntime and await RunAsync() for the full runtime lifetime.
 * TaskEvaluationRuntime moves through four states:
   * Stopped: nothing happening, can Start back into a running state.
   * Running: evaluating every second
   * StopRequested: instructs the every-second evaluation loop to quit and initiates a cancellation request on the cancellation token that all running tasks have access to.
   * StoppingGracefully: waiting for executing tasks to complete
   * Back to Stopped.
-* RunAsync creates a background thread to evaluate rules. RequestStop requests the background thread to stop. Control is then handed back to RunAsync which waits for all running tasks to complete. Then control is returned from RunAsync to the awaiting caller.
+* RunAsync creates a background thread to evaluate rules. Cancel the RunAsync cancellation token or call RequestStop() to request shutdown.
+* RunAsync waits for currently running callbacks to complete before returning. ShutdownTimeout defaults to 30 seconds; set it to Timeout.InfiniteTimeSpan to wait indefinitely.
+* Scheduled callbacks should call RequestStop() if they need to stop the runtime. Await RunAsync() from application or host code to know when shutdown has completed.
 
 ## Catch-up behavior
 
@@ -152,6 +150,7 @@ Validation is basic, so it's possible to create rules that never fire, e.g., on 
   * Hardened unit tests with Codex 5.5.
   * Added catch-up policy.
   * Improved defensive schedule evalation, so invalid schedules, null tasks, or null timezones won't kill the runtime.
+  * Improved stop logic with an optional timeout (defaults to 30s) to prevent deadlocks.
 * June 2023:
   * Updated to include .NET 7.
   * Added cron string parsing.

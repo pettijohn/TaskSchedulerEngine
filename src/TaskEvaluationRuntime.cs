@@ -82,6 +82,7 @@ namespace TaskSchedulerEngine
 
         private CancellationTokenSource? _evaluationLoopCancellationToken;
         private TimeSpan _catchUpWarningThreshold = TimeSpan.FromSeconds(60);
+        private TimeSpan _shutdownTimeout = TimeSpan.FromSeconds(30);
         private bool _catchUpWarningActive;
 
         /// <summary>
@@ -115,6 +116,27 @@ namespace TaskSchedulerEngine
         public event EventHandler<ScheduleCatchUpEventArgs>? ScheduleCatchUpWarning;
 
         /// <summary>
+        /// Maximum time RunAsync waits for running scheduled tasks after shutdown is requested.
+        /// Use Timeout.InfiniteTimeSpan to wait indefinitely.
+        /// </summary>
+        public TimeSpan ShutdownTimeout
+        {
+            get
+            {
+                return _shutdownTimeout;
+            }
+            set
+            {
+                if (value != Timeout.InfiniteTimeSpan && value <= TimeSpan.Zero)
+                    throw new ArgumentOutOfRangeException(nameof(value), "Shutdown timeout must be greater than zero, or Timeout.InfiniteTimeSpan.");
+                if (value != Timeout.InfiniteTimeSpan && value.TotalMilliseconds > int.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(value), "Shutdown timeout must not exceed Int32.MaxValue milliseconds.");
+
+                _shutdownTimeout = value;
+            }
+        }
+
+        /// <summary>
         /// Raised when an individual schedule rule throws while being evaluated. The failed
         /// schedule is skipped for that evaluated second, but remains active for future seconds.
         /// </summary>
@@ -127,10 +149,10 @@ namespace TaskSchedulerEngine
         private static long TaskID = 0;
 
         /// <summary>
-        /// Start the evaluation pump on a worker thread, waits for the thread to stop, then gracefully shuts down.
-        /// Call RequestStop to stop the background thread. 
+        /// Start the evaluation pump, wait for a stop request or cancellation, then drain running tasks.
+        /// Call RequestStop or cancel <paramref name="cancellationToken"/> to stop the background thread.
         /// </summary>
-        public async Task RunAsync()
+        public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             lock (_lock_runState)
             {
@@ -141,8 +163,12 @@ namespace TaskSchedulerEngine
             }
 
             Exception? evaluationLoopException = null;
+            CancellationTokenRegistration cancellationRegistration = default;
             try
             {
+                if (cancellationToken.CanBeCanceled)
+                    cancellationRegistration = cancellationToken.Register(() => RequestStop());
+
                 //Invoke the worker on its own thread.
                 var pumpTask = System.Threading.Tasks.Task.Run(this.EvaluationLoop);
                 // Yield control and wait for PumpInteral's thread to end, signaled by RequestStop()
@@ -154,7 +180,8 @@ namespace TaskSchedulerEngine
             }
             finally
             {
-                await StopAsync();
+                cancellationRegistration.Dispose();
+                await DrainRunningTasksAsync();
             }
 
             if (evaluationLoopException != null)
@@ -162,24 +189,70 @@ namespace TaskSchedulerEngine
         }
 
         /// <summary>
-        /// Request stop, and then wait for it to stop
+        /// Drain running scheduled tasks after the evaluation loop has stopped.
         /// </summary>
-        /// <returns></returns>
-        public async Task StopAsync()
+        private async Task DrainRunningTasksAsync()
         {
-            RequestStop();
-
             lock (_lock_runState)
             {
                 _runState = TaskEvaluationRuntimeState.StoppingGracefully;
             }
-            Trace.WriteLine($"Waiting for {_runningTasks.Count} Tasks to complete.", "TaskSchedulerEngine");
-            await Task.WhenAll(_runningTasks.Keys);
-            lock (_lock_runState)
+
+            try
             {
-                _runState = TaskEvaluationRuntimeState.Stopped;
+                Task[] runningTasks = new List<Task>(_runningTasks.Keys).ToArray();
+                Trace.WriteLine($"Waiting for {runningTasks.Length} Tasks to complete.", "TaskSchedulerEngine");
+
+                if (runningTasks.Length > 0)
+                {
+                    Task allRunningTasks = Task.WhenAll(runningTasks);
+                    Task completedTask;
+                    if (ShutdownTimeout == Timeout.InfiniteTimeSpan)
+                    {
+                        completedTask = await Task.WhenAny(allRunningTasks);
+                    }
+                    else
+                    {
+                        Task timeoutTask = Task.Delay(ShutdownTimeout);
+                        completedTask = await Task.WhenAny(allRunningTasks, timeoutTask);
+                    }
+
+                    if (completedTask != allRunningTasks)
+                    {
+                        Trace.WriteLine(
+                            $"Shutdown timeout elapsed after {ShutdownTimeout}. {_runningTasks.Count} Tasks are still running.",
+                            "TaskSchedulerEngine");
+                    }
+                    else
+                    {
+                        ObserveCompletedRunningTaskFaults(runningTasks);
+                    }
+                }
             }
-            Trace.WriteLine("Stopped", "TaskSchedulerEngine");
+            finally
+            {
+                lock (_lock_runState)
+                {
+                    _runState = TaskEvaluationRuntimeState.Stopped;
+                }
+                Trace.WriteLine("Stopped", "TaskSchedulerEngine");
+            }
+        }
+
+        /// <summary>
+        /// Observe faults from callbacks that completed during shutdown without throwing from RunAsync.
+        /// Callback fault reporting already happens in each task continuation, so this method only marks
+        /// exceptions observed and keeps shutdown state cleanup reliable.
+        /// </summary>
+        private void ObserveCompletedRunningTaskFaults(IEnumerable<Task> runningTasks)
+        {
+            foreach (Task task in runningTasks)
+            {
+                if (task.IsFaulted && task.Exception != null)
+                {
+                    _ = task.Exception;
+                }
+            }
         }
 
         /// <summary>

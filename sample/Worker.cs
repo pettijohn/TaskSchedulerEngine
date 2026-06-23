@@ -80,11 +80,6 @@ public class Worker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await Runtime.RunAsync();
-    }
-
-    public override async Task StopAsync(CancellationToken cancellationToken)
-    {
-        await Runtime.StopAsync();
+        await Runtime.RunAsync(stoppingToken);
     }
 }

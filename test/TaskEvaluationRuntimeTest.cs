@@ -150,6 +150,21 @@ namespace SchedulerEngineRuntimeTests
         }
 
         [TestMethod]
+        public async Task RunAsyncStopsWhenCancellationTokenIsCanceled()
+        {
+            var runtime = new TaskEvaluationRuntime();
+            using (var cts = new CancellationTokenSource())
+            {
+                Task run = runtime.RunAsync(cts.Token);
+
+                cts.Cancel();
+                await AwaitWithTimeout(run);
+            }
+
+            Assert.IsTrue(runtime.Stopped);
+        }
+
+        [TestMethod]
         public async Task RuntimeCanRestartAfterStopping()
         {
             var runtime = new TaskEvaluationRuntime();
@@ -163,6 +178,93 @@ namespace SchedulerEngineRuntimeTests
             await secondRun;
 
             Assert.IsTrue(runtime.Stopped);
+        }
+
+        [TestMethod]
+        public async Task RunAsyncDrainTimesOutAndReturnsToStoppedWhenCallbackDoesNotComplete()
+        {
+            var callbackStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseCallback = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var runtime = new TaskEvaluationRuntime
+            {
+                ShutdownTimeout = TimeSpan.FromMilliseconds(20)
+            };
+            runtime.CreateSchedule()
+                .ExecuteOnceAt(DateTimeOffset.UtcNow.AddSeconds(1))
+                .Execute(async (e, token) =>
+                {
+                    callbackStarted.SetResult(true);
+                    await releaseCallback.Task;
+                    return true;
+                });
+
+            Task run = runtime.RunAsync();
+            await AwaitWithTimeout(callbackStarted.Task);
+            Assert.IsTrue(runtime.RequestStop());
+            await AwaitWithTimeout(run);
+
+            Assert.IsTrue(runtime.Stopped);
+
+            releaseCallback.SetResult(true);
+        }
+
+        [TestMethod]
+        public async Task RunAsyncDoesNotFaultWhenCallbackFaulted()
+        {
+            var callbackReported = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var runtime = new TaskEvaluationRuntime
+            {
+                ShutdownTimeout = TimeSpan.FromSeconds(1),
+                UnhandledScheduledTaskException = e => callbackReported.TrySetResult(e)
+            };
+            runtime.CreateSchedule()
+                .ExecuteOnceAt(DateTimeOffset.UtcNow.AddSeconds(1))
+                .Execute((Func<ScheduleRuleMatchEventArgs, CancellationToken, bool>)
+                    ((e, token) =>
+                    {
+                        e.Runtime.RequestStop();
+                        throw new InvalidOperationException("Expected shutdown fault test failure.");
+                    }));
+
+            Task run = runtime.RunAsync();
+            await AwaitWithTimeout(callbackReported.Task);
+            await AwaitWithTimeout(run);
+
+            Assert.IsTrue(runtime.Stopped);
+        }
+
+        [TestMethod]
+        public async Task CallbackCanRequestStop()
+        {
+            var requestStopResult = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var runtime = new TaskEvaluationRuntime();
+            runtime.CreateSchedule()
+                .ExecuteOnceAt(DateTimeOffset.UtcNow.AddSeconds(1))
+                .Execute((e, token) =>
+                {
+                    requestStopResult.SetResult(e.Runtime.RequestStop());
+                    return true;
+                });
+
+            Task run = runtime.RunAsync();
+            bool requested = await AwaitWithTimeout(requestStopResult.Task);
+            await AwaitWithTimeout(run);
+
+            Assert.IsTrue(requested);
+            Assert.IsTrue(runtime.Stopped);
+        }
+
+        [TestMethod]
+        public void ShutdownTimeoutRejectsInvalidValues()
+        {
+            var runtime = new TaskEvaluationRuntime();
+
+            Assert.ThrowsException<ArgumentOutOfRangeException>(() => runtime.ShutdownTimeout = TimeSpan.Zero);
+            Assert.ThrowsException<ArgumentOutOfRangeException>(() => runtime.ShutdownTimeout = TimeSpan.FromSeconds(-1));
+            Assert.ThrowsException<ArgumentOutOfRangeException>(() => runtime.ShutdownTimeout = TimeSpan.MaxValue);
+
+            runtime.ShutdownTimeout = Timeout.InfiniteTimeSpan;
+            Assert.AreEqual(Timeout.InfiniteTimeSpan, runtime.ShutdownTimeout);
         }
 
         [TestMethod]
