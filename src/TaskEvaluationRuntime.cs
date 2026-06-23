@@ -7,6 +7,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -114,6 +115,12 @@ namespace TaskSchedulerEngine
         public event EventHandler<ScheduleCatchUpEventArgs>? ScheduleCatchUpWarning;
 
         /// <summary>
+        /// Raised when an individual schedule rule throws while being evaluated. The failed
+        /// schedule is skipped for that evaluated second, but remains active for future seconds.
+        /// </summary>
+        public event EventHandler<ScheduleRuleEvaluationExceptionEventArgs>? ScheduleRuleEvaluationException;
+
+        /// <summary>
         /// Keep a counter of how many Tasks have executed. Each Task invocation will have a unique sequential ID.
         /// Only update with System.Threading.Interlocked.Increment(). 
         /// </summary>
@@ -133,12 +140,25 @@ namespace TaskSchedulerEngine
                 _runState = TaskEvaluationRuntimeState.Running;
             }
 
-            //Invoke the worker on its own thread.
-            var pumpTask = System.Threading.Tasks.Task.Run(this.EvaluationLoop);
-            // Yield control and wait for PumpInteral's thread to end, signaled by RequestStop()
-            await pumpTask;
+            Exception? evaluationLoopException = null;
+            try
+            {
+                //Invoke the worker on its own thread.
+                var pumpTask = System.Threading.Tasks.Task.Run(this.EvaluationLoop);
+                // Yield control and wait for PumpInteral's thread to end, signaled by RequestStop()
+                await pumpTask;
+            }
+            catch (Exception e)
+            {
+                evaluationLoopException = e;
+            }
+            finally
+            {
+                await StopAsync();
+            }
 
-            await StopAsync();
+            if (evaluationLoopException != null)
+                ExceptionDispatchInfo.Capture(evaluationLoopException).Throw();
         }
 
         /// <summary>
@@ -407,7 +427,17 @@ namespace TaskSchedulerEngine
                     continue;
                 }
 
-                var match = scheduleItem.Value.EvaluateRuleMatch(secondToEvaluate);
+                bool match;
+                try
+                {
+                    match = scheduleItem.Value.EvaluateRuleMatch(secondToEvaluate);
+                }
+                catch (Exception e)
+                {
+                    ReportScheduleRuleEvaluationException(scheduleItem.Key, secondToEvaluate, e);
+                    continue;
+                }
+
                 if (match)
                 {
                     var eventArgs = new ScheduleRuleMatchEventArgs(
@@ -452,6 +482,34 @@ namespace TaskSchedulerEngine
             }
 
             return i;
+        }
+
+        private void ReportScheduleRuleEvaluationException(
+            ScheduleRule scheduleRule,
+            DateTimeOffset timeEvaluatedUtc,
+            Exception exception)
+        {
+            var eventArgs = new ScheduleRuleEvaluationExceptionEventArgs(
+                scheduleRule,
+                timeEvaluatedUtc,
+                exception);
+
+            Trace.WriteLine(
+                $"Schedule rule evaluation failed. ScheduleName={scheduleRule.Name}, TimeEvaluatedUtc={timeEvaluatedUtc:o}, Exception={exception}",
+                "TaskSchedulerEngine");
+
+            try
+            {
+                ScheduleRuleEvaluationException?.Invoke(this, eventArgs);
+            }
+            catch (Exception e)
+            {
+                // Diagnostic event handlers are user code. Report failures, but keep the
+                // scheduler loop alive and continue evaluating other rules.
+                Trace.WriteLine("Unhandled exception in ScheduleRuleEvaluationException handler: " + e, "TaskSchedulerEngine");
+                if (UnhandledScheduledTaskException != null)
+                    UnhandledScheduledTaskException(e);
+            }
         }
 
         /// <summary>

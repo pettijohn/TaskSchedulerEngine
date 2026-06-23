@@ -17,7 +17,7 @@ namespace TaskSchedulerEngine
             if (baseRetryIntervalSeconds < 2) throw new ArgumentOutOfRangeException("Minimum retry interval is 2 seconds.");
             if (maxAttempts < 1) throw new ArgumentOutOfRangeException("Minimum maxAttempts is 1.");
 
-            Task = task;
+            Task = task ?? throw new ArgumentNullException(nameof(task));
             MaxAttempts = maxAttempts;
             BaseRetryIntervalSeconds = baseRetryIntervalSeconds;
         }

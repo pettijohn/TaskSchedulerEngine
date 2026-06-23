@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TaskSchedulerEngine;
 
@@ -420,6 +421,30 @@ namespace SchedulerEngineRuntimeTests
                 .FromCron("61 * * *\t*");
 
             Assert.Fail();
+        }
+
+        [TestMethod]
+        public void NullScheduleInputsThrowArgumentNullException()
+        {
+            var rule = new ScheduleRule();
+
+            // Null values used to drift into later optimization/evaluation code. These checks make
+            // invalid schedules fail at the API boundary instead of poisoning the runtime loop.
+            Assert.ThrowsException<ArgumentNullException>(() => rule.FromCron(null));
+            Assert.ThrowsException<ArgumentNullException>(() => rule.AtYears(null));
+            Assert.ThrowsException<ArgumentNullException>(() => rule.AtMonths(null));
+            Assert.ThrowsException<ArgumentNullException>(() => rule.AtDaysOfMonth(null));
+            Assert.ThrowsException<ArgumentNullException>(() => rule.AtDaysOfWeek(null));
+            Assert.ThrowsException<ArgumentNullException>(() => rule.AtHours(null));
+            Assert.ThrowsException<ArgumentNullException>(() => rule.AtMinutes(null));
+            Assert.ThrowsException<ArgumentNullException>(() => rule.AtSeconds(null));
+            Assert.ThrowsException<ArgumentNullException>(() => rule.WithTimeZone((string)null));
+            Assert.ThrowsException<ArgumentNullException>(() => rule.WithTimeZone((TimeZoneInfo)null));
+            Assert.ThrowsException<ArgumentNullException>(() => rule.Execute((Func<ScheduleRuleMatchEventArgs, System.Threading.CancellationToken, Task<bool>>)null));
+            Assert.ThrowsException<ArgumentNullException>(() => rule.Execute((Func<ScheduleRuleMatchEventArgs, System.Threading.CancellationToken, bool>)null));
+            Assert.ThrowsException<ArgumentNullException>(() => rule.Execute((IScheduledTask)null));
+            Assert.ThrowsException<ArgumentNullException>(() => rule.ExecuteAndRetry((Func<ScheduleRuleMatchEventArgs, System.Threading.CancellationToken, Task<bool>>)null, 1, 2));
+            Assert.ThrowsException<ArgumentNullException>(() => rule.ExecuteAndRetry((Func<ScheduleRuleMatchEventArgs, System.Threading.CancellationToken, bool>)null, 1, 2));
         }
 
         [TestMethod]

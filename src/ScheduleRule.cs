@@ -43,6 +43,9 @@ namespace TaskSchedulerEngine
         /// </summary>
         public ScheduleRule FromCron(string cronExp)
         {
+            if (cronExp == null)
+                throw new ArgumentNullException(nameof(cronExp));
+
             /*
 
             # Example of job definition:
@@ -110,6 +113,9 @@ namespace TaskSchedulerEngine
 
         public ScheduleRule AtYears(params int[] value)
         {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if(value.Where(v => v < MinYear || v > (MinYear+62)).Count() > 0)
                 throw new ArgumentOutOfRangeException($"Year must be between {MinYear} and {MinYear+62}.");
             Years = value;
@@ -124,6 +130,9 @@ namespace TaskSchedulerEngine
         /// </summary>
         public ScheduleRule AtMonths(params int[] value)
         {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if(value.Where(v => v > 12 || v < 1).Count() > 0)
                 throw new ArgumentOutOfRangeException("Month must be between 1 (Jan) and 12 (Dec), inclusive.");
             Months = value;
@@ -137,6 +146,9 @@ namespace TaskSchedulerEngine
         /// </summary>
         public ScheduleRule AtDaysOfMonth(params int[] value)
         {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if(value.Where(v => v > 31 || v < 1).Count() > 0)
                 throw new ArgumentOutOfRangeException("DaysOfMonth must be between 1 and 31, inclusive.");
             
@@ -151,6 +163,9 @@ namespace TaskSchedulerEngine
         /// </summary>
         public ScheduleRule AtDaysOfWeek(params int[] value)
         {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if(value.Where(v => v > 6 || v < 0).Count() > 0)
                 throw new ArgumentOutOfRangeException("DaysOfWeek must be between 0 (Sun) and 6 (Sat), inclusive.");
             
@@ -165,6 +180,9 @@ namespace TaskSchedulerEngine
         /// <param name="value"></param>
         public ScheduleRule AtHours(params int[] value)
         {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if(value.Where(v => v > 23 || v < 0).Count() > 0)
                 throw new ArgumentOutOfRangeException("Hours must be between 0 (12am, start of day) and 23 (11pm), inclusive");
             
@@ -178,6 +196,9 @@ namespace TaskSchedulerEngine
         /// </summary>
         public ScheduleRule AtMinutes(params int[] value)
         {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if(value.Where(v => v > 59 || v < 0).Count() > 0)
                 throw new ArgumentOutOfRangeException("Minutes must be between 0 and 59, inclusive");
             
@@ -191,6 +212,9 @@ namespace TaskSchedulerEngine
         /// </summary>
         public ScheduleRule AtSeconds(params int[] value)
         {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if(value.Where(v => v > 59 || v < 0).Count() > 0)
                 throw new ArgumentOutOfRangeException("Seconds must be between 0 and 59, inclusive");
             
@@ -218,6 +242,9 @@ namespace TaskSchedulerEngine
         /// <param name="tzId">Rules defined here https://learn.microsoft.com/en-us/dotnet/api/system.timezoneinfo.findsystemtimezonebyid</param>
         public ScheduleRule WithTimeZone(string tzId)
         {
+            if (tzId == null)
+                throw new ArgumentNullException(nameof(tzId));
+
             try {
                 return WithTimeZone(TimeZoneInfo.FindSystemTimeZoneById(tzId));
             }
@@ -227,7 +254,7 @@ namespace TaskSchedulerEngine
         }
         public ScheduleRule WithTimeZone(TimeZoneInfo tz)
         {
-            TimeZone = tz;
+            TimeZone = tz ?? throw new ArgumentNullException(nameof(tz));
             if(Runtime != null) Runtime.UpdateSchedule(this);
             return this;
         }
@@ -364,6 +391,9 @@ namespace TaskSchedulerEngine
         /// </summary>
         public ScheduleRule ExecuteAndRetry(Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> callback, int maxAttempts, int baseRetryIntervalSeconds)
         {
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
             Task = new ExponentialBackoffTask(callback, maxAttempts, baseRetryIntervalSeconds);
             if(Runtime != null) Runtime.UpdateSchedule(this);
             return this;
@@ -374,11 +404,17 @@ namespace TaskSchedulerEngine
         /// </summary>
         public ScheduleRule ExecuteAndRetry(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback, int maxAttempts, int baseRetryIntervalSeconds)
         {
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
             return ExecuteAndRetry(async (e, ct) => callback(e, ct), maxAttempts, baseRetryIntervalSeconds);
         }
 
         public ScheduleRule Execute(Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> callback)
         {
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
             Task = new AnonymousScheduledTask(callback);
             if(Runtime != null) Runtime.UpdateSchedule(this);
             return this;
@@ -386,12 +422,15 @@ namespace TaskSchedulerEngine
 
         public ScheduleRule Execute(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback)
         {
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
             return Execute(async (e, ct) => callback(e, ct));
         }
 
         public ScheduleRule Execute(IScheduledTask taskInstance)
         {
-            Task = taskInstance;
+            Task = taskInstance ?? throw new ArgumentNullException(nameof(taskInstance));
             if(Runtime != null) Runtime.UpdateSchedule(this);
             return this;
         }

@@ -22,7 +22,7 @@ namespace TaskSchedulerEngine
         }
         public ExponentialBackoffTask(RetryableTaskArgs args)
         {
-            _args = args;
+            _args = args ?? throw new ArgumentNullException(nameof(args));
         }
 
         private RetryableTaskArgs _args;

@@ -134,12 +134,24 @@ runtime.CatchUpPolicy = ScheduleCatchUpPolicy.SkipToLatestSecond;
 
 `SkipToLatestSecond` evaluates the most recent whole UTC second and advances from there; it does not dispatch callbacks for older skipped seconds.
 
+## Schedule evaluation diagnostics
+
+Invalid schedule inputs such as null callbacks, null tasks, null arrays, and null time zones are rejected when configuring a `ScheduleRule`. If an individual rule still throws while being evaluated, the runtime skips only that rule for that evaluated second, reports the failure through `Trace` and `ScheduleRuleEvaluationException`, and continues evaluating the remaining schedules.
+
+```C#
+runtime.ScheduleRuleEvaluationException += (sender, e) =>
+{
+  Console.WriteLine($"Schedule '{e.ScheduleRule.Name}' failed at {e.TimeEvaluatedUtc:o}: {e.Exception}");
+};
+```
+
 Validation is basic, so it's possible to create rules that never fire, e.g., on day 31 of February.
 
 ## Changelog
 * June 2026:
-  * Hardened unit tests with Codex 5.5
-  * Added catch-up policy
+  * Hardened unit tests with Codex 5.5.
+  * Added catch-up policy.
+  * Improved defensive schedule evalation, so invalid schedules, null tasks, or null timezones won't kill the runtime.
 * June 2023:
   * Updated to include .NET 7.
   * Added cron string parsing.

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -276,6 +277,103 @@ namespace SchedulerEngineRuntimeTests
         }
 
         [TestMethod]
+        public async Task ScheduleRuleEvaluationExceptionIsReportedAndOtherSchedulesContinue()
+        {
+            DateTimeOffset evaluationTime = CurrentTestTime();
+            bool invalidScheduleExecuted = false;
+            bool validScheduleExecuted = false;
+            var reported = new ConcurrentQueue<ScheduleRuleEvaluationExceptionEventArgs>();
+            var runtime = new TaskEvaluationRuntime();
+            runtime.ScheduleRuleEvaluationException += (sender, e) => reported.Enqueue(e);
+
+            // Public APIs now reject null time zones. Poison the backing field directly so this test
+            // still proves the runtime is protected from future/internal corrupted schedule snapshots.
+            ScheduleRule invalidSchedule = runtime.CreateSchedule()
+                .WithName("Invalid")
+                .Execute((e, token) =>
+                {
+                    invalidScheduleExecuted = true;
+                    return true;
+                });
+            PoisonScheduleTimeZone(invalidSchedule);
+            runtime.UpdateSchedule(invalidSchedule);
+
+            runtime.CreateSchedule()
+                .WithName("Valid")
+                .Execute((e, token) =>
+                {
+                    validScheduleExecuted = true;
+                    return true;
+                });
+
+            int matches = await runtime.EvaluateAndWaitAsync(evaluationTime);
+
+            // The poisoned rule should be skipped only for this evaluated second. The valid rule must
+            // still execute, proving one bad schedule cannot kill the whole evaluation pass.
+            Assert.AreEqual(1, matches);
+            Assert.IsFalse(invalidScheduleExecuted);
+            Assert.IsTrue(validScheduleExecuted);
+            Assert.IsTrue(reported.TryPeek(out ScheduleRuleEvaluationExceptionEventArgs exceptionEvent));
+            Assert.AreSame(invalidSchedule, exceptionEvent.ScheduleRule);
+            Assert.AreEqual(evaluationTime, exceptionEvent.TimeEvaluatedUtc);
+            Assert.IsInstanceOfType(exceptionEvent.Exception, typeof(ArgumentNullException));
+
+            invalidScheduleExecuted = false;
+            validScheduleExecuted = false;
+            invalidSchedule.WithUtc();
+
+            // The failed schedule is not evicted forever. After fixing it, it participates normally
+            // in later evaluations.
+            matches = await runtime.EvaluateAndWaitAsync(evaluationTime.AddSeconds(1));
+
+            Assert.AreEqual(2, matches);
+            Assert.IsTrue(invalidScheduleExecuted);
+            Assert.IsTrue(validScheduleExecuted);
+        }
+
+        [TestMethod]
+        public async Task ScheduleRuleEvaluationExceptionHandlerFailureIsReportedAndDoesNotStopEvaluation()
+        {
+            DateTimeOffset evaluationTime = CurrentTestTime();
+            bool validScheduleExecuted = false;
+            var reportedHandlerException = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var runtime = new TaskEvaluationRuntime
+            {
+                UnhandledScheduledTaskException = e => reportedHandlerException.TrySetResult(e)
+            };
+            runtime.ScheduleRuleEvaluationException += (sender, e) =>
+            {
+                // Diagnostic subscribers are user code. A bad handler should be reported, not allowed
+                // to become a new way to terminate schedule evaluation.
+                throw new InvalidOperationException("Expected diagnostic handler failure.");
+            };
+
+            // Same deliberate corruption as above: bypass public validation to simulate a bad snapshot.
+            ScheduleRule invalidSchedule = runtime.CreateSchedule()
+                .WithName("Invalid")
+                .Execute((e, token) => true);
+            PoisonScheduleTimeZone(invalidSchedule);
+            runtime.UpdateSchedule(invalidSchedule);
+
+            runtime.CreateSchedule()
+                .WithName("Valid")
+                .Execute((e, token) =>
+                {
+                    validScheduleExecuted = true;
+                    return true;
+                });
+
+            int matches = await runtime.EvaluateAndWaitAsync(evaluationTime);
+            Exception handlerException = await AwaitWithTimeout(reportedHandlerException.Task);
+
+            // The valid schedule still runs even though evaluating another schedule failed and the
+            // diagnostic handler itself threw.
+            Assert.AreEqual(1, matches);
+            Assert.IsTrue(validScheduleExecuted);
+            Assert.IsTrue(handlerException.ToString().Contains("Expected diagnostic handler failure."));
+        }
+
+        [TestMethod]
         public async Task ExponentialBackoffTaskTest()
         {
             await AssertRetrySchedule(async (e, token) =>
@@ -337,6 +435,17 @@ namespace SchedulerEngineRuntimeTests
         {
             await AwaitWithTimeout((Task)task);
             return await task;
+        }
+
+        private static void PoisonScheduleTimeZone(ScheduleRule scheduleRule)
+        {
+            // Test-only corruption helper. Reflection keeps production validation strict while letting
+            // us exercise the runtime's defensive exception boundary.
+            FieldInfo timeZoneField = typeof(ScheduleRule).GetField(
+                "<TimeZone>k__BackingField",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(timeZoneField, "Unable to find TimeZone backing field for test setup.");
+            timeZoneField.SetValue(scheduleRule, null);
         }
 
         private static void UpdateMaximum(ref int maximum, int candidate)
