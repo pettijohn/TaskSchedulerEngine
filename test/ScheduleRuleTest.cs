@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TaskSchedulerEngine;
+using static SchedulerEngineRuntimeTests.TestAssert;
 
 namespace SchedulerEngineRuntimeTests
 {
@@ -29,10 +30,10 @@ namespace SchedulerEngineRuntimeTests
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public void BitfieldOverflowException()
         {
-            ScheduleEvaluationOptimized.ParseIntArrayToBitfield(new int[] { 63 });
+            Throws<ArgumentOutOfRangeException>(() =>
+                ScheduleEvaluationOptimized.ParseIntArrayToBitfield(new int[] { 63 }));
         }
 
         [TestMethod]
@@ -270,99 +271,87 @@ namespace SchedulerEngineRuntimeTests
 
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public void Bounds_Month_Min()
         {
-            var rule = new ScheduleRule()
-                .AtMonths(0);
+            Throws<ArgumentOutOfRangeException>(() => new ScheduleRule()
+                .AtMonths(0));
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public void Bounds_Month_Max()
         {
-            var rule = new ScheduleRule()
-                .AtMonths(13);
+            Throws<ArgumentOutOfRangeException>(() => new ScheduleRule()
+                .AtMonths(13));
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public void Bounds_DaysOfMonth_Min()
         {
-            var rule = new ScheduleRule()
-                .AtDaysOfMonth(0);
+            Throws<ArgumentOutOfRangeException>(() => new ScheduleRule()
+                .AtDaysOfMonth(0));
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public void Bounds_DaysOfMonth_Max()
         {
-            var rule = new ScheduleRule()
-                .AtDaysOfMonth(32);
+            Throws<ArgumentOutOfRangeException>(() => new ScheduleRule()
+                .AtDaysOfMonth(32));
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public void Bounds_DaysOfWeek_Min()
         {
-            var rule = new ScheduleRule()
-                .AtDaysOfWeek(-1);
+            Throws<ArgumentOutOfRangeException>(() => new ScheduleRule()
+                .AtDaysOfWeek(-1));
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public void Bounds_DaysOfWeek_Max()
         {
-            var rule = new ScheduleRule()
-                .AtDaysOfWeek(7);
+            Throws<ArgumentOutOfRangeException>(() => new ScheduleRule()
+                .AtDaysOfWeek(7));
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public void Bounds_Hours_Min()
         {
-            var rule = new ScheduleRule()
-                .AtHours(-1);
+            Throws<ArgumentOutOfRangeException>(() => new ScheduleRule()
+                .AtHours(-1));
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public void Bounds_Hours_Max()
         {
-            var rule = new ScheduleRule()
-                .AtHours(24);
+            Throws<ArgumentOutOfRangeException>(() => new ScheduleRule()
+                .AtHours(24));
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public void Bounds_Minutes_Min()
         {
-            var rule = new ScheduleRule()
-                .AtMinutes(-1);
+            Throws<ArgumentOutOfRangeException>(() => new ScheduleRule()
+                .AtMinutes(-1));
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public void Bounds_Minutes_Max()
         {
-            var rule = new ScheduleRule()
-                .AtMinutes(60);
+            Throws<ArgumentOutOfRangeException>(() => new ScheduleRule()
+                .AtMinutes(60));
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public void Bounds_Seconds_Min()
         {
-            var rule = new ScheduleRule()
-                .AtSeconds(-1);
+            Throws<ArgumentOutOfRangeException>(() => new ScheduleRule()
+                .AtSeconds(-1));
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public void Bounds_Seconds_Max()
         {
-            var rule = new ScheduleRule()
-                .AtSeconds(60);
+            Throws<ArgumentOutOfRangeException>(() => new ScheduleRule()
+                .AtSeconds(60));
         }
 
         [TestMethod]
@@ -371,29 +360,29 @@ namespace SchedulerEngineRuntimeTests
             var rule = new ScheduleRule()
                 .FromCron("55,03 22,19,20 2,03,11,29,31 2,03,11,12 0,5,6");
 
-            Assert.IsTrue(rule.Minutes.Length == 2);
+            Assert.HasCount(2, rule.Minutes);
             Assert.IsTrue(rule.Minutes.Contains(55));
             Assert.IsTrue(rule.Minutes.Contains(3));
 
-            Assert.IsTrue(rule.Hours.Length == 3);
+            Assert.HasCount(3, rule.Hours);
             Assert.IsTrue(rule.Hours.Contains(22));
             Assert.IsTrue(rule.Hours.Contains(19));
             Assert.IsTrue(rule.Hours.Contains(20));
 
-            Assert.IsTrue(rule.DaysOfMonth.Length == 5);
+            Assert.HasCount(5, rule.DaysOfMonth);
             Assert.IsTrue(rule.DaysOfMonth.Contains(2));
             Assert.IsTrue(rule.DaysOfMonth.Contains(3));
             Assert.IsTrue(rule.DaysOfMonth.Contains(11));
             Assert.IsTrue(rule.DaysOfMonth.Contains(29));
             Assert.IsTrue(rule.DaysOfMonth.Contains(31));
 
-            Assert.IsTrue(rule.Months.Length == 4);
+            Assert.HasCount(4, rule.Months);
             Assert.IsTrue(rule.Months.Contains(2));
             Assert.IsTrue(rule.Months.Contains(3));
             Assert.IsTrue(rule.Months.Contains(11));
             Assert.IsTrue(rule.Months.Contains(12));
 
-            Assert.IsTrue(rule.DaysOfWeek.Length == 3);
+            Assert.HasCount(3, rule.DaysOfWeek);
             Assert.IsTrue(rule.DaysOfWeek.Contains(0));
             Assert.IsTrue(rule.DaysOfWeek.Contains(5));
             Assert.IsTrue(rule.DaysOfWeek.Contains(6));
@@ -406,21 +395,18 @@ namespace SchedulerEngineRuntimeTests
             var rule = new ScheduleRule()
                 .FromCron("* * * *\t*");
 
-            Assert.IsTrue(rule.Minutes.Length == 0);
-            Assert.IsTrue(rule.Hours.Length == 0);
-            Assert.IsTrue(rule.DaysOfMonth.Length == 0);
-            Assert.IsTrue(rule.Months.Length == 0);
-            Assert.IsTrue(rule.DaysOfWeek.Length == 0);
+            Assert.IsEmpty(rule.Minutes);
+            Assert.IsEmpty(rule.Hours);
+            Assert.IsEmpty(rule.DaysOfMonth);
+            Assert.IsEmpty(rule.Months);
+            Assert.IsEmpty(rule.DaysOfWeek);
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentException))]
         public void Cron_OutOfBounds()
         {
-            var rule = new ScheduleRule()
-                .FromCron("61 * * *\t*");
-
-            Assert.Fail();
+            Throws<ArgumentException>(() => new ScheduleRule()
+                .FromCron("61 * * *\t*"));
         }
 
         [TestMethod]
@@ -430,21 +416,21 @@ namespace SchedulerEngineRuntimeTests
 
             // Null values used to drift into later optimization/evaluation code. These checks make
             // invalid schedules fail at the API boundary instead of poisoning the runtime loop.
-            Assert.ThrowsException<ArgumentNullException>(() => rule.FromCron(null));
-            Assert.ThrowsException<ArgumentNullException>(() => rule.AtYears(null));
-            Assert.ThrowsException<ArgumentNullException>(() => rule.AtMonths(null));
-            Assert.ThrowsException<ArgumentNullException>(() => rule.AtDaysOfMonth(null));
-            Assert.ThrowsException<ArgumentNullException>(() => rule.AtDaysOfWeek(null));
-            Assert.ThrowsException<ArgumentNullException>(() => rule.AtHours(null));
-            Assert.ThrowsException<ArgumentNullException>(() => rule.AtMinutes(null));
-            Assert.ThrowsException<ArgumentNullException>(() => rule.AtSeconds(null));
-            Assert.ThrowsException<ArgumentNullException>(() => rule.WithTimeZone((string)null));
-            Assert.ThrowsException<ArgumentNullException>(() => rule.WithTimeZone((TimeZoneInfo)null));
-            Assert.ThrowsException<ArgumentNullException>(() => rule.Execute((Func<ScheduleRuleMatchEventArgs, System.Threading.CancellationToken, Task<bool>>)null));
-            Assert.ThrowsException<ArgumentNullException>(() => rule.Execute((Func<ScheduleRuleMatchEventArgs, System.Threading.CancellationToken, bool>)null));
-            Assert.ThrowsException<ArgumentNullException>(() => rule.Execute((IScheduledTask)null));
-            Assert.ThrowsException<ArgumentNullException>(() => rule.ExecuteAndRetry((Func<ScheduleRuleMatchEventArgs, System.Threading.CancellationToken, Task<bool>>)null, 1, 2));
-            Assert.ThrowsException<ArgumentNullException>(() => rule.ExecuteAndRetry((Func<ScheduleRuleMatchEventArgs, System.Threading.CancellationToken, bool>)null, 1, 2));
+            Throws<ArgumentNullException>(() => rule.FromCron(null));
+            Throws<ArgumentNullException>(() => rule.AtYears(null));
+            Throws<ArgumentNullException>(() => rule.AtMonths(null));
+            Throws<ArgumentNullException>(() => rule.AtDaysOfMonth(null));
+            Throws<ArgumentNullException>(() => rule.AtDaysOfWeek(null));
+            Throws<ArgumentNullException>(() => rule.AtHours(null));
+            Throws<ArgumentNullException>(() => rule.AtMinutes(null));
+            Throws<ArgumentNullException>(() => rule.AtSeconds(null));
+            Throws<ArgumentNullException>(() => rule.WithTimeZone((string)null));
+            Throws<ArgumentNullException>(() => rule.WithTimeZone((TimeZoneInfo)null));
+            Throws<ArgumentNullException>(() => rule.Execute((Func<ScheduleRuleMatchEventArgs, System.Threading.CancellationToken, Task<bool>>)null));
+            Throws<ArgumentNullException>(() => rule.Execute((Func<ScheduleRuleMatchEventArgs, System.Threading.CancellationToken, bool>)null));
+            Throws<ArgumentNullException>(() => rule.Execute((IScheduledTask)null));
+            Throws<ArgumentNullException>(() => rule.ExecuteAndRetry((Func<ScheduleRuleMatchEventArgs, System.Threading.CancellationToken, Task<bool>>)null, 1, 2));
+            Throws<ArgumentNullException>(() => rule.ExecuteAndRetry((Func<ScheduleRuleMatchEventArgs, System.Threading.CancellationToken, bool>)null, 1, 2));
         }
 
         [TestMethod]

@@ -33,7 +33,7 @@ public class Worker : BackgroundService
 
         // Set up an unhandled exception handler for tasks
         Runtime.UnhandledScheduledTaskException = (Exception e) => 
-            { _logger.LogError("Unhandled error on background thread", e); };
+            { _logger.LogError(e, "Unhandled error on background thread"); };
 
         // Schedule an instance of IScheduledTask
         Runtime.CreateSchedule()

@@ -4,7 +4,7 @@ A lightweight (zero dependencies, core logic is <400 lines of code) cron-like sc
 Implement IScheduledTask or provide a callback, define a ScheduleRule, and Start the runtime.
 Schedule Rule evaluation is itself lightweight with bitwise evaluation of "now" against the rules (see ScheduleRuleEvaluationOptimized).
 Each invoked ScheduledTask runs on its own thread so long running tasks won't block other tasks.
-Targets .NET Core 3.1, .NET 6, .NET 7 (and presumably everything in between).
+Targets .NET 8, .NET 9, and .NET 10.
 
 ## Quick Start
 
@@ -147,6 +147,7 @@ Validation is basic, so it's possible to create rules that never fire, e.g., on 
 
 ## Changelog
 * June 2026:
+  * Updated supported target frameworks to .NET 8, .NET 9, and .NET 10.
   * Hardened unit tests with Codex 5.5.
   * Added catch-up policy.
   * Improved defensive schedule evalation, so invalid schedules, null tasks, or null timezones won't kill the runtime.
@@ -160,8 +161,8 @@ Validation is basic, so it's possible to create rules that never fire, e.g., on 
 ## A note on the 2010 vs 2021 versions
 
 Circa 2010, this project lived on Codeplex and ran on .NET Framework 4. An old [version 1.0.0 still lives on Nuget](https://www.nuget.org/packages/TaskSchedulerEngine/1.0.0).
-The 2021 edition of this project runs on .NET Core 3.1 and .NET 6. A lot has changed in the intervening years, namely how multithreaded programming
-is accomplished in .NET (async/await didn't launch until C# 5.0 in 2012). While upgrading .NET 6, I simplified the code, the end result being:
+The 2021 edition of this project originally ran on .NET Core 3.1 and .NET 6. A lot has changed in the intervening years, namely how multithreaded programming
+is accomplished in .NET (async/await didn't launch until C# 5.0 in 2012). While upgrading to modern .NET, I simplified the code, the end result being:
 this library is incompatible with the 2010 version. While the core logic and the fluent API remain very similar, the
 class names are incompatible, ITask has changed, and some of the multithreading behaviors are different.
 This should be considered a *new* library that happens to share a name and some roots with the old one.

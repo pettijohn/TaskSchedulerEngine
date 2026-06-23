@@ -20,13 +20,26 @@ RUN apt-get update \
         git \
         less \
         locales \
+        software-properties-common \
         sudo \
         unzip \
+        wget \
+    && add-apt-repository -y ppa:dotnet/backports \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        dotnet-sdk-8.0 \
+        dotnet-sdk-9.0 \
         dotnet-sdk-10.0 \
-    wget \
     && locale-gen en_US.UTF-8 \
     && update-locale LANG=en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
+
+# Install PowerShell from the official .deb package. Runs as root during image build
+RUN set -eux; \
+    curl -fsSLo /tmp/powershell.deb https://github.com/PowerShell/PowerShell/releases/download/v7.6.3/powershell_7.6.3-1.deb_amd64.deb; \
+    dpkg -i /tmp/powershell.deb || { apt-get update; apt-get install -y -f --no-install-recommends; }; \
+    rm -f /tmp/powershell.deb; \
+    rm -rf /var/lib/apt/lists/*
 
 # Normalize the container user to the requested UID/GID.
 #

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TaskSchedulerEngine;
+using static SchedulerEngineRuntimeTests.TestAssert;
 
 namespace SchedulerEngineRuntimeTests
 {
@@ -117,7 +118,7 @@ namespace SchedulerEngineRuntimeTests
             runtime.Evaluate(CurrentTestTime());
             Exception exception = await AwaitWithTimeout(reportedException.Task);
 
-            Assert.IsTrue(exception.ToString().Contains("Expected test failure"));
+            Assert.Contains("Expected test failure", exception.ToString());
         }
 
         [TestMethod]
@@ -126,7 +127,7 @@ namespace SchedulerEngineRuntimeTests
             var runtime = new TaskEvaluationRuntime();
 
             Task run = runtime.RunAsync();
-            await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => runtime.RunAsync());
+            await ThrowsAsync<InvalidOperationException>(() => runtime.RunAsync());
             Assert.IsTrue(runtime.RequestStop());
             await run;
 
@@ -259,9 +260,9 @@ namespace SchedulerEngineRuntimeTests
         {
             var runtime = new TaskEvaluationRuntime();
 
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() => runtime.ShutdownTimeout = TimeSpan.Zero);
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() => runtime.ShutdownTimeout = TimeSpan.FromSeconds(-1));
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() => runtime.ShutdownTimeout = TimeSpan.MaxValue);
+            Throws<ArgumentOutOfRangeException>(() => runtime.ShutdownTimeout = TimeSpan.Zero);
+            Throws<ArgumentOutOfRangeException>(() => runtime.ShutdownTimeout = TimeSpan.FromSeconds(-1));
+            Throws<ArgumentOutOfRangeException>(() => runtime.ShutdownTimeout = TimeSpan.MaxValue);
 
             runtime.ShutdownTimeout = Timeout.InfiniteTimeSpan;
             Assert.AreEqual(Timeout.InfiniteTimeSpan, runtime.ShutdownTimeout);
@@ -374,8 +375,8 @@ namespace SchedulerEngineRuntimeTests
         {
             var runtime = new TaskEvaluationRuntime();
 
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() => runtime.CatchUpWarningThreshold = TimeSpan.Zero);
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() => runtime.CatchUpWarningThreshold = TimeSpan.FromSeconds(-1));
+            Throws<ArgumentOutOfRangeException>(() => runtime.CatchUpWarningThreshold = TimeSpan.Zero);
+            Throws<ArgumentOutOfRangeException>(() => runtime.CatchUpWarningThreshold = TimeSpan.FromSeconds(-1));
         }
 
         [TestMethod]
@@ -472,7 +473,7 @@ namespace SchedulerEngineRuntimeTests
             // diagnostic handler itself threw.
             Assert.AreEqual(1, matches);
             Assert.IsTrue(validScheduleExecuted);
-            Assert.IsTrue(handlerException.ToString().Contains("Expected diagnostic handler failure."));
+            Assert.Contains("Expected diagnostic handler failure.", handlerException.ToString());
         }
 
         [TestMethod]
@@ -549,7 +550,6 @@ namespace SchedulerEngineRuntimeTests
             Assert.IsNotNull(timeZoneField, "Unable to find TimeZone backing field for test setup.");
             timeZoneField.SetValue(scheduleRule, null);
         }
-
         private static void UpdateMaximum(ref int maximum, int candidate)
         {
             int observed;
