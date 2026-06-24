@@ -1,0 +1,4 @@
+local.env
+.env
+docker-compose.local.yml
+*.local.json

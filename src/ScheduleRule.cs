@@ -36,15 +36,12 @@ namespace TaskSchedulerEngine {
 
         /// <summary>
         /// Cron string in the format minute (0..59), hour (0..23), dayOfMonth (1..31), month (1..12), dayOfWeek (0=Sunday..6).
-        /// Will always set Seconds=0; call .AtSeconds() to override. Supports comma separated lists of numbers or stars. 
-        /// DOES NOT support step (/) or range (-) operators. 
+        /// Will always set Seconds=0; call .AtSeconds() to override. Supports comma separated lists, ranges (-), steps (/), and stars.
         /// </summary>
-        public ScheduleRule FromCron(string cronExp) {
-
-            cronExp = cronExp.Replace("\t", " ");
-            cronExp = cronExp.Replace("\r", " ");
-            cronExp = cronExp.Replace("\n", " ");
-
+        public ScheduleRule FromCron(string cronExp)
+        {
+            if (cronExp == null)
+                throw new ArgumentNullException(nameof(cronExp));
 
             /*
 
@@ -74,121 +71,52 @@ namespace TaskSchedulerEngine {
             //this.Months      = match.Groups[12].Value == "*" ? new int[] { } : match.Groups[12].Value.Split(",").Select(s => Int32.Parse(s)).ToArray();
             //this.DaysOfWeek  = match.Groups[16].Value == "*" ? new int[] { } : match.Groups[16].Value.Split(",").Select(s => Int32.Parse(s)).ToArray();
 
-            var cronParts = cronExp.Split(" ");
-            if (cronParts.Count() != 5) {
+            var cronParts = cronExp.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            if (cronParts.Length != 5) {
                 throw new ArgumentException("Cron expression must have 5 parts!");
             }
 
             this.Seconds = new int[] { 0 };
             this.Minutes = CalculateCronInts(cronParts[0], upperLimit: 59);
             this.Hours = CalculateCronInts(cronParts[1], upperLimit: 23);
-            this.DaysOfMonth = CalculateCronInts(cronParts[2], 31);
-            this.Months = CalculateCronInts(cronParts[3], 12);
-            this.DaysOfWeek = CalculateCronInts(cronParts[4], 7);
+            this.DaysOfMonth = CalculateCronInts(cronParts[2], 31, 1);
+            this.Months = CalculateCronInts(cronParts[3], 12, 1);
+            this.DaysOfWeek = CalculateCronInts(cronParts[4], 6);
 
             if (Runtime != null) Runtime.UpdateSchedule(this);
             return this;
         }
 
 
-        public static int[] CalculateCronInts(string segment, int upperLimit = 59) {
-            List<int> final_parts = new List<int>();
-            List<int>? operandParts = null;
+        public static int[] CalculateCronInts(string segment, int upperLimit = 59, int lowerLimit = 0) {
+            if (segment == null)
+                throw new ArgumentNullException(nameof(segment));
 
-            int? previousInt = null;
-            int? _currentInnerBuffer = null;
-            string currentString = "";
-            CronOperand? Operand = null;
+            if (lowerLimit > upperLimit)
+                throw new ArgumentException("Lower limit cannot be greater than upper limit.", nameof(lowerLimit));
 
-            Action<bool> performOperation = (bool finalCall) => {
-                if (previousInt == null)
-                    throw new ArgumentException("Operation cannot be called without a leading operand");
-                if (_currentInnerBuffer == null)
-                    throw new ArgumentException("Operation cannot be called without a trailing operand");
-                switch (Operand) {
+            segment = segment.Trim();
+            if (segment.Length == 0)
+                throw new ArgumentException("Cron segment cannot be empty.", nameof(segment));
 
-                    case CronOperand.RANGE:
-                        operandParts = CalculateRange((int)previousInt, (int)_currentInnerBuffer);
-                        break;
+            if (segment.Any(Char.IsWhiteSpace))
+                throw new ArgumentException("Cron segment cannot contain whitespace.", nameof(segment));
 
-                    case CronOperand.NTH:
-                        if (operandParts == null)
-                            operandParts = CalculateRange((int)previousInt, upperLimit);
-                        operandParts = CalculateNth(operandParts, (int)_currentInnerBuffer);
-                        break;
+            if (segment == "*")
+                return new int[] { };
 
-                    case CronOperand.ADD:
-                        //operandParts = new List<int>() { };
-                        final_parts.Add((int)previousInt);
-                        if (finalCall) 
-                            final_parts.Add((int)_currentInnerBuffer);
-                        break;
+            if (segment.Contains('*'))
+                throw new ArgumentException("Wildcard must be the entire cron segment.", nameof(segment));
 
-                    case null:
-                        return;
-                }
-                Operand = null;
-            };
+            List<int> finalParts = new List<int>();
+            foreach (var part in segment.Split(',')) {
+                if (part.Length == 0)
+                    throw new ArgumentException("Cron segment contains an empty list item.", nameof(segment));
 
-            Action parseCurrentString = () => {
-                int _tmp;
-                if (Int32.TryParse(currentString, out _tmp)) {
-                    _currentInnerBuffer = _tmp;
-                } else {
-                    _currentInnerBuffer = null;
-                }
-                currentString = "";
-            };
-
-            for (int i = 0; i < segment.Length + 1; i++) {
-                if (i == segment.Length) {
-                    parseCurrentString();
-                    if (Operand == null) {
-                        if (_currentInnerBuffer != null)
-                            final_parts.Add((int)_currentInnerBuffer);
-                        break;
-                    }
-                    performOperation(true);
-                    if (operandParts != null)
-                        final_parts.AddRange(operandParts!);
-                    break;
-                }
-                if (System.Char.IsDigit(segment[i])) {
-                    currentString += segment[i];
-                    continue;
-                } else {
-                    parseCurrentString();
-                    if (Operand != null) {
-                        performOperation(false);
-                    }
-                    switch (segment[i]) {
-                        case '-':
-                            Operand = CronOperand.RANGE;
-                            break;
-
-                        case '/':
-                            Operand = CronOperand.NTH;
-                            break;
-
-                        case ',':
-                            Operand = CronOperand.ADD;
-                            break;
-
-                        case '*':
-                            Operand = null;
-                            break;
-
-                        default:
-                            throw new ArgumentException($"Illegal Character {segment[i]} in cron parameter");
-                    }
-                    previousInt = _currentInnerBuffer ;
-
-                }
+                finalParts.AddRange(CalculateCronPart(part, lowerLimit, upperLimit));
             }
-            if (final_parts.Any(x => x > upperLimit)) {
-                throw new ArgumentException("Upper limit exceeded");
-            }
-            return final_parts.ToArray();
+
+            return finalParts.ToArray();
         }
 
         private static List<int> CalculateRange(int start, int end) {
@@ -202,9 +130,12 @@ namespace TaskSchedulerEngine {
         }
 
         public static List<int> CalculateNth(List<int> list, int n) {
-            if (n <= 0) {
-                throw new ArgumentException("n must be greater than 0");
-            }
+            if (list == null)
+                throw new ArgumentNullException(nameof(list));
+
+            if (n <= 0)
+                throw new ArgumentOutOfRangeException(nameof(n), "n must be greater than 0");
+
             List<int> result = new List<int>();
             for (int i = n - 1; i < list.Count; i += n) {
                 result.Add(list[i]);
@@ -212,11 +143,58 @@ namespace TaskSchedulerEngine {
             return result;
         }
 
+        private static List<int> CalculateCronPart(string part, int lowerLimit, int upperLimit) {
+            var slashParts = part.Split('/');
+            if (slashParts.Length > 2 || slashParts[0].Length == 0 || (slashParts.Length == 2 && slashParts[1].Length == 0))
+                throw new ArgumentException("Cron step expressions must have values on both sides of '/'.", nameof(part));
 
-        private enum CronOperand {
-            RANGE,
-            NTH,
-            ADD
+            var baseValues = slashParts.Length == 1
+                ? CalculateCronBasePart(slashParts[0], lowerLimit, upperLimit)
+                : CalculateCronStepBasePart(slashParts[0], lowerLimit, upperLimit);
+            if (slashParts.Length == 1)
+                return baseValues;
+
+            var step = ParseCronInt(slashParts[1], lowerLimit: 1, upperLimit: upperLimit, parameterName: nameof(part));
+            return CalculateNth(baseValues, step);
+        }
+
+        private static List<int> CalculateCronStepBasePart(string part, int lowerLimit, int upperLimit) {
+            if (part == "*")
+                return CalculateRange(lowerLimit, upperLimit);
+
+            var rangeParts = part.Split('-');
+            if (rangeParts.Length == 1) {
+                var start = ParseCronInt(part, lowerLimit, upperLimit, nameof(part));
+                return CalculateRange(start, upperLimit);
+            }
+
+            return CalculateCronBasePart(part, lowerLimit, upperLimit);
+        }
+
+        private static List<int> CalculateCronBasePart(string part, int lowerLimit, int upperLimit) {
+            if (part == "*")
+                return CalculateRange(lowerLimit, upperLimit);
+
+            var rangeParts = part.Split('-');
+            if (rangeParts.Length > 2 || rangeParts[0].Length == 0 || (rangeParts.Length == 2 && rangeParts[1].Length == 0))
+                throw new ArgumentException("Cron range expressions must have values on both sides of '-'.", nameof(part));
+
+            if (rangeParts.Length == 1)
+                return new List<int> { ParseCronInt(part, lowerLimit, upperLimit, nameof(part)) };
+
+            var start = ParseCronInt(rangeParts[0], lowerLimit, upperLimit, nameof(part));
+            var end = ParseCronInt(rangeParts[1], lowerLimit, upperLimit, nameof(part));
+            return CalculateRange(start, end);
+        }
+
+        private static int ParseCronInt(string value, int lowerLimit, int upperLimit, string parameterName) {
+            if (!value.All(Char.IsDigit) || !Int32.TryParse(value, out var result))
+                throw new ArgumentException($"Cron value '{value}' is not a valid integer.", parameterName);
+
+            if (result < lowerLimit || result > upperLimit)
+                throw new ArgumentOutOfRangeException(parameterName, $"Cron value must be between {lowerLimit} and {upperLimit}, inclusive.");
+
+            return result;
         }
 
         /// <summary>
@@ -250,7 +228,11 @@ namespace TaskSchedulerEngine {
         internal static readonly int MinYear = DateTimeOffset.Now.Year - 1;
         public int[] Years { get; private set; } = new int[] { };
 
-        public ScheduleRule AtYears(params int[] value) {
+        public ScheduleRule AtYears(params int[] value)
+        {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if (value.Where(v => v < MinYear || v > (MinYear + 62)).Count() > 0)
                 throw new ArgumentOutOfRangeException($"Year must be between {MinYear} and {MinYear + 62}.");
             Years = value;
@@ -263,7 +245,11 @@ namespace TaskSchedulerEngine {
         /// <summary>
         /// List of months, where 1=Jan, or Empty for any
         /// </summary>
-        public ScheduleRule AtMonths(params int[] value) {
+        public ScheduleRule AtMonths(params int[] value)
+        {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if (value.Where(v => v > 12 || v < 1).Count() > 0)
                 throw new ArgumentOutOfRangeException("Month must be between 1 (Jan) and 12 (Dec), inclusive.");
             Months = value;
@@ -275,7 +261,11 @@ namespace TaskSchedulerEngine {
         /// <summary>
         /// 1 to 31 or Empty fo any
         /// </summary>
-        public ScheduleRule AtDaysOfMonth(params int[] value) {
+        public ScheduleRule AtDaysOfMonth(params int[] value)
+        {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if (value.Where(v => v > 31 || v < 1).Count() > 0)
                 throw new ArgumentOutOfRangeException("DaysOfMonth must be between 1 and 31, inclusive.");
 
@@ -288,7 +278,11 @@ namespace TaskSchedulerEngine {
         /// <summary>
         /// 0=Sunday, 1=Mon... 6=Saturday or Empty for any
         /// </summary>
-        public ScheduleRule AtDaysOfWeek(params int[] value) {
+        public ScheduleRule AtDaysOfWeek(params int[] value)
+        {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if (value.Where(v => v > 6 || v < 0).Count() > 0)
                 throw new ArgumentOutOfRangeException("DaysOfWeek must be between 0 (Sun) and 6 (Sat), inclusive.");
 
@@ -301,7 +295,11 @@ namespace TaskSchedulerEngine {
         /// 0 (12am, start of the day) to 23 (11pm)
         /// </summary>
         /// <param name="value"></param>
-        public ScheduleRule AtHours(params int[] value) {
+        public ScheduleRule AtHours(params int[] value)
+        {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if (value.Where(v => v > 23 || v < 0).Count() > 0)
                 throw new ArgumentOutOfRangeException("Hours must be between 0 (12am, start of day) and 23 (11pm), inclusive");
 
@@ -313,7 +311,11 @@ namespace TaskSchedulerEngine {
         /// <summary>
         /// 0 to 59
         /// </summary>
-        public ScheduleRule AtMinutes(params int[] value) {
+        public ScheduleRule AtMinutes(params int[] value)
+        {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if (value.Where(v => v > 59 || v < 0).Count() > 0)
                 throw new ArgumentOutOfRangeException("Minutes must be between 0 and 59, inclusive");
 
@@ -325,7 +327,11 @@ namespace TaskSchedulerEngine {
         /// <summary>
         /// 0 to 59
         /// </summary>
-        public ScheduleRule AtSeconds(params int[] value) {
+        public ScheduleRule AtSeconds(params int[] value)
+        {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
             if (value.Where(v => v > 59 || v < 0).Count() > 0)
                 throw new ArgumentOutOfRangeException("Seconds must be between 0 and 59, inclusive");
 
@@ -349,15 +355,20 @@ namespace TaskSchedulerEngine {
         /// Looks up time zone from the system.
         /// </summary>
         /// <param name="tzId">Rules defined here https://learn.microsoft.com/en-us/dotnet/api/system.timezoneinfo.findsystemtimezonebyid</param>
-        public ScheduleRule WithTimeZone(string tzId) {
+        public ScheduleRule WithTimeZone(string tzId)
+        {
+            if (tzId == null)
+                throw new ArgumentNullException(nameof(tzId));
+
             try {
                 return WithTimeZone(TimeZoneInfo.FindSystemTimeZoneById(tzId));
             } catch (TimeZoneNotFoundException) {
                 throw new ArgumentException($"System cannot find time zone {tzId}.", nameof(tzId));
             }
         }
-        public ScheduleRule WithTimeZone(TimeZoneInfo tz) {
-            TimeZone = tz;
+        public ScheduleRule WithTimeZone(TimeZoneInfo tz)
+        {
+            TimeZone = tz ?? throw new ArgumentNullException(nameof(tz));
             if (Runtime != null) Runtime.UpdateSchedule(this);
             return this;
         }
@@ -370,6 +381,8 @@ namespace TaskSchedulerEngine {
             var s = this.AtYears(time.Year)
                 .AtMonths(time.Month)
                 .AtDaysOfMonth(time.Day)
+                .AtHours(time.Hour)
+                .AtMinutes(time.Minute)
                 .AtSeconds(time.Second)
                 .WithUtc()
                 .ExpiresAfter(time.AddMinutes(1));
@@ -481,7 +494,11 @@ namespace TaskSchedulerEngine {
         /// <summary>
         /// Execute a task with exponential backoff algorithm. See ExponentialBackoffTask for details. 
         /// </summary>
-        public ScheduleRule ExecuteAndRetry(Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> callback, int maxAttempts, int baseRetryIntervalSeconds) {
+        public ScheduleRule ExecuteAndRetry(Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> callback, int maxAttempts, int baseRetryIntervalSeconds)
+        {
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
             Task = new ExponentialBackoffTask(callback, maxAttempts, baseRetryIntervalSeconds);
             if (Runtime != null) Runtime.UpdateSchedule(this);
             return this;
@@ -490,22 +507,35 @@ namespace TaskSchedulerEngine {
         /// <summary>
         /// Execute a task with exponential backoff algorithm. See ExponentialBackoffTask for details. 
         /// </summary>
-        public ScheduleRule ExecuteAndRetry(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback, int maxAttempts, int baseRetryIntervalSeconds) {
+        public ScheduleRule ExecuteAndRetry(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback, int maxAttempts, int baseRetryIntervalSeconds)
+        {
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
             return ExecuteAndRetry(async (e, ct) => callback(e, ct), maxAttempts, baseRetryIntervalSeconds);
         }
 
-        public ScheduleRule Execute(Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> callback) {
+        public ScheduleRule Execute(Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> callback)
+        {
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
             Task = new AnonymousScheduledTask(callback);
             if (Runtime != null) Runtime.UpdateSchedule(this);
             return this;
         }
 
-        public ScheduleRule Execute(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback) {
+        public ScheduleRule Execute(Func<ScheduleRuleMatchEventArgs, CancellationToken, bool> callback)
+        {
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
             return Execute(async (e, ct) => callback(e, ct));
         }
 
-        public ScheduleRule Execute(IScheduledTask taskInstance) {
-            Task = taskInstance;
+        public ScheduleRule Execute(IScheduledTask taskInstance)
+        {
+            Task = taskInstance ?? throw new ArgumentNullException(nameof(taskInstance));
             if (Runtime != null) Runtime.UpdateSchedule(this);
             return this;
         }

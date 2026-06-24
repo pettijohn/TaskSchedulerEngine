@@ -15,7 +15,7 @@ internal class AnonymousScheduledTask : IScheduledTask
 {
     public AnonymousScheduledTask(Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> callback)
     {
-        Callback = callback;
+        Callback = callback ?? throw new ArgumentNullException(nameof(callback));
     }
 
     public Func<ScheduleRuleMatchEventArgs, CancellationToken, Task<bool>> Callback { get; set; }

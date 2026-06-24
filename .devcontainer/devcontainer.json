@@ -1,0 +1,29 @@
+{
+  "name": "devcontainer-taskschedulerengine",
+  "dockerComposeFile": [
+    "docker-compose.yml",
+    "docker-compose.local.yml"
+  ],
+  "initializeCommand": ".devcontainer/init-compose-env.sh",
+  "service": "devcontainer",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "containerUser": "vscode",
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": false,
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "openai.chatgpt",
+        "ms-dotnettools.csdevkit"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "files.trimTrailingWhitespace": true
+      }
+    }
+  },
+  "postCreateCommand": ".devcontainer/post-create.sh"
+}

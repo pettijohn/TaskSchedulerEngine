@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TaskSchedulerEngine;
+using static SchedulerEngineRuntimeTests.TestAssert;
 
 namespace TaskSchedulerEngineTests {
     [TestClass]
@@ -133,52 +134,45 @@ namespace TaskSchedulerEngineTests {
         // FAILIURES
 
         [TestMethod("Fail 1")]
-        [ExpectedException(typeof(ArgumentException), "Expression with leading operand passed!")]
         public void Fail1() {
             var expression = ",1,2,3,4";
-            TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59);
+            Throws<ArgumentException>(() => TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59));
         }
 
         [TestMethod("Fail 2")]
-        [ExpectedException(typeof(ArgumentException), "Expression with leading operand passed!")]
         public void Fail2() {
             var expression = "-3";
-            TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59);
+            Throws<ArgumentException>(() => TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59));
         }
 
         [TestMethod("Fail 3")]
-        [ExpectedException(typeof(ArgumentException), "Expression with leading operand passed!")]
         public void Fail3() {
             var expression = "0,-3";
-            TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59);
+            Throws<ArgumentException>(() => TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59));
         }
 
         [TestMethod("Fail 4")]
-        [ExpectedException(typeof(ArgumentException), "Expression with trailing operand passed!")]
         public void Fail4() {
             var expression = "1,2,3,4,";
-            TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59);
+            Throws<ArgumentException>(() => TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59));
         }
 
         [TestMethod("Fail 5")]
-        [ExpectedException(typeof(ArgumentException), "Expression with trailing operand passed!")]
         public void Fail5() {
             var expression = "3-";
-            TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59);
+            Throws<ArgumentException>(() => TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59));
         }
 
         [TestMethod("Fail 6")]
-        [ExpectedException(typeof(ArgumentException), "Expression with trailing operand passed!")]
         public void Fail6() {
             var expression = "0,3-";
-            TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59);
+            Throws<ArgumentException>(() => TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59));
         }
 
         [TestMethod("Fail 7")]
-        [ExpectedException(typeof(ArgumentException), "Expression with invalid character!")]
         public void Fail7() {
             var expression = "4(4";
-            TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59);
+            Throws<ArgumentException>(() => TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59));
         }
 
     }

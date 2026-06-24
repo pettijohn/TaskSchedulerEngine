@@ -20,9 +20,9 @@ Read-Host -Prompt $versionNum;
 
 $apiKey = get-content .nuget
 dotnet pack -c Release -o .\out\
-dotnet nuget push --source https://api.nuget.org/v3/index.json --api-key $apiKey ".\out\TaskSchedulerEngine.${versionNum}.nupkg"
+dotnet nuget push --source https://api.nuget.org/v3/index.json --api-key $apiKey "./out/TaskSchedulerEngine.${versionNum}.nupkg"
 
 git tag $versionNum
 git commit -a -m "${versionNum}"
 git push
-git push --tags 
+git push --tags

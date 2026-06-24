@@ -1,0 +1,15 @@
+name: ${DEVCONTAINER_ID:-devcontainer}
+
+services:
+  devcontainer:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+      args:
+        USERNAME: vscode
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+    init: true
+    volumes:
+      - ..:/workspaces/${WORKSPACE_BASENAME:-workspace}:cached
+    command: sleep infinity
