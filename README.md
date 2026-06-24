@@ -55,7 +55,7 @@ static async Task Main(string[] args)
          // In this case will retry after 2, 4, 8 second waits
     );
 
-  // You can also create rules from cron expressions; * or comma separated lists are supported
+  // You can also create rules from cron expressions; *, comma separated lists, ranges, and steps are supported
   // Format: minute (0..59), hour (0..23), dayOfMonth (1..31), month (1..12), dayOfWeek (0=Sunday..6).
   // Seconds will always be zero.
   var s4 = runtime.CreateSchedule()
@@ -101,6 +101,28 @@ static async Task Main(string[] args)
 * Scheduled Task - the thing to execute when schedule matches. The instance is shared by all executions forever and should be thread safe (unless you're completely sure there will only ever be at most one invocation). If you need an instance per execution, make ScheduledTask.OnScheduleRuleMatch a factory pattern.
 * Schedule Rule Match - the current second ("Now") matches a Schedule Rule so the Scheduled Task should execute. A single ScheduleRule can only execute one ScheduledTask. If you need to execute multiple tasks sequentially, initiate them from your Task. Multiple Schedule Rules that fire at the same time will execute in parallel (order not guaranteed).
 * Task Evaluation Runtime - the thing that evaluates the rules each second. Evaluation runs on its own thread and spawns Tasks on their own threads.
+
+## Cron parser overview
+
+`FromCron` accepts five fields: minute, hour, day-of-month, month, and day-of-week. Seconds are always set to zero.
+
+At a high level, parsing is intentionally small:
+
+```text
+Split the expression into five fields.
+ParseCronField(field, min, max) for each field.
+
+ParseCronField:
+  if "*" return an empty array, which means wildcard
+  return field.Split(',').SelectMany(ParseCronTerm)
+
+ParseCronTerm:
+  split once on '/'
+  parse base as "*" | number | range
+  expand from baseStart to baseEnd by step
+```
+
+For example, `*/15` expands to `0,15,30,45`, `1/10` expands to `1,11,21,31,41,51`, and `9-17/4` expands to `9,13,17`.
 
 ## Troubleshooting
 

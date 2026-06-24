@@ -1,179 +1,166 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TaskSchedulerEngine;
 using static SchedulerEngineRuntimeTests.TestAssert;
 
-namespace TaskSchedulerEngineTests {
+namespace SchedulerEngineRuntimeTests
+{
     [TestClass]
-    public class CronExtendedFunctionality {
-        public CronExtendedFunctionality() { }
+    public class CronExtendedFunctionality
+    {
+        [TestMethod]
+        public void CronField_Wildcard_ReturnsEmptyWildcard()
+        {
+            var results = ScheduleRule.ParseCronField("*");
 
-        [TestMethod("Simple Range")]
-        public void Range1() {
-            var expression = "0-3";
-            var expected = new int[] { 0, 1, 2, 3 };
-            var results = TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression);
-            CollectionAssert.AreEqual(expected, results);
+            Assert.IsEmpty(results);
         }
 
-        [TestMethod("Multi Digit Range")]
-        public void Range3() {
-            var expression = "0-12";
-            var expected = new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
-            var results = TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression);
-            CollectionAssert.AreEqual(expected, results);
+        [TestMethod]
+        public void CronField_SingleValue_ReturnsSingleValue()
+        {
+            var results = ScheduleRule.ParseCronField("20", 59);
+
+            CollectionAssert.AreEqual(new int[] { 20 }, results);
         }
 
-        [TestMethod("Simple Range 2")]
-        public void Range2() {
-            var expression = "0-5";
-            var expected = new int[] { 0, 1, 2, 3, 4, 5 };
-            var results = TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression);
-            CollectionAssert.AreEqual(expected, results);
+        [TestMethod]
+        public void CronField_List_ReturnsValuesInOrder()
+        {
+            var results = ScheduleRule.ParseCronField("1,2,3,4", 59);
+
+            CollectionAssert.AreEqual(new int[] { 1, 2, 3, 4 }, results);
         }
 
+        [TestMethod]
+        public void CronField_Range_ReturnsInclusiveValues()
+        {
+            var results = ScheduleRule.ParseCronField("8-12", 59);
 
-        [TestMethod("Range with Nth Selector")]
-        public void RangeWithNth1() {
-            var expression = "0-4/2";
-            var expected = new int[] { 1, 3 };
-            var results = TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression);
-            CollectionAssert.AreEqual(expected, results);
+            CollectionAssert.AreEqual(new int[] { 8, 9, 10, 11, 12 }, results);
         }
 
-        [TestMethod("Multi Digit Range with Nth Selector 1")]
-        public void RangeWithNth2() {
-            var expression = "0-12/2";
-            var expected = new int[] { 1, 3, 5, 7, 9, 11 };
-            var results = TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression);
-            CollectionAssert.AreEqual(expected, results);
+        [TestMethod]
+        public void CronField_RangeWithStep_ReturnsCronStepValues()
+        {
+            var results = ScheduleRule.ParseCronField("8-14/3", 59);
+
+            CollectionAssert.AreEqual(new int[] { 8, 11, 14 }, results);
         }
 
-        [TestMethod("Nth Selector")]
-        public void Nth1() {
-            var expression = "50/1";
-            var expected = new int[] { 50, 51, 52, 53, 54, 55, 56, 57, 58, 59 };
-            var results = TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59);
-            CollectionAssert.AreEqual(expected, results);
+        [TestMethod]
+        public void CronField_WildcardWithStep_ReturnsCronStepValues()
+        {
+            var results = ScheduleRule.ParseCronField("*/20", 59);
+
+            CollectionAssert.AreEqual(new int[] { 0, 20, 40 }, results);
         }
 
-        [TestMethod("Nth Selector 3")]
-        public void Nth3() {
-            var expression = "0,1/20";
-            var expected = new int[] { 0, 20, 40 };
-            var results = TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59);
-            CollectionAssert.AreEqual(expected, results);
+        [TestMethod]
+        public void CronField_StartWithStep_ReturnsCronStepValues()
+        {
+            var results = ScheduleRule.ParseCronField("1/10", 59);
+
+            CollectionAssert.AreEqual(new int[] { 1, 11, 21, 31, 41, 51 }, results);
         }
 
-        [TestMethod("Nth Selector 2")]
-        public void Nth2() {
-            var expression = "50/2";
-            var expected = new int[] { 51, 53, 55, 57, 59 };
-            var results = TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59);
-            CollectionAssert.AreEqual(expected, results);
+        [TestMethod]
+        public void CronField_ListWithRangesAndSteps_ReturnsExpandedValues()
+        {
+            var results = ScheduleRule.ParseCronField("1,5-7,10-16/3", 59);
+
+            CollectionAssert.AreEqual(new int[] { 1, 5, 6, 7, 10, 13, 16 }, results);
         }
 
-        [TestMethod("Multi Digit Nth Selector")]
-        public void MultiDigitNth() {
-            var expression = "1/10";
-            var expected = new int[] { 10, 20, 30, 40, 50 };
-            var results = TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59);
-            CollectionAssert.AreEqual(expected, results);
+        [TestMethod]
+        public void CronField_WithLowerLimit_UsesLowerLimitForWildcardStep()
+        {
+            var results = ScheduleRule.ParseCronField("*/2", 12, 1);
+
+            CollectionAssert.AreEqual(new int[] { 1, 3, 5, 7, 9, 11 }, results);
         }
 
-        [TestMethod("Simple List")]
-        public void List1() {
-            var expression = "1,2,3,4";
-            var expected = new int[] { 1, 2, 3, 4, };
-            var results = TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59);
-            CollectionAssert.AreEqual(expected, results);
+        [TestMethod]
+        public void CronField_BoundaryValues_ReturnsValuesAtLimits()
+        {
+            CollectionAssert.AreEqual(new int[] { 0, 59 }, ScheduleRule.ParseCronField("0,59", 59));
+            CollectionAssert.AreEqual(new int[] { 0, 23 }, ScheduleRule.ParseCronField("0,23", 23));
+            CollectionAssert.AreEqual(new int[] { 1, 31 }, ScheduleRule.ParseCronField("1,31", 31, 1));
+            CollectionAssert.AreEqual(new int[] { 1, 12 }, ScheduleRule.ParseCronField("1,12", 12, 1));
+            CollectionAssert.AreEqual(new int[] { 0, 6 }, ScheduleRule.ParseCronField("0,6", 6));
         }
 
-        [TestMethod("Mixed Test 1")]
-        public void MixedTest1() {
-            var expression = "1,2,3,4-10";
-            var expected = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 , 10};
-            var results = TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59);
-            CollectionAssert.AreEqual(expected, results);
+        [TestMethod]
+        public void CronField_StepEdges_ReturnsCronStepValues()
+        {
+            CollectionAssert.AreEqual(new int[] { 58 }, ScheduleRule.ParseCronField("58/2", 59));
+            CollectionAssert.AreEqual(new int[] { 0 }, ScheduleRule.ParseCronField("*/60", 59));
+            CollectionAssert.AreEqual(new int[] { 0, 4 }, ScheduleRule.ParseCronField("0-5/4", 59));
         }
 
-        [TestMethod("Mixed Test 2")]
-        public void MixedTest2() {
-            var expression = "20";
-            var expected = new int[] { 20 };
-            var results = TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59);
-            CollectionAssert.AreEqual(expected, results);
-        }
-
-        [TestMethod("Full Cron 1")]
-        public void CronFull1() {
+        [TestMethod]
+        public void FromCron_WithRangesAndSteps_ExpandsFields()
+        {
             var rule = new ScheduleRule()
-                .FromCron("0 2-3 * * *")
-                .Execute((a, b) => true);
+                .FromCron("*/15 9-17/4 1,15 */3 1-5");
+
+            CollectionAssert.AreEqual(new int[] { 0 }, rule.Seconds);
+            CollectionAssert.AreEqual(new int[] { 0, 15, 30, 45 }, rule.Minutes);
+            CollectionAssert.AreEqual(new int[] { 9, 13, 17 }, rule.Hours);
+            CollectionAssert.AreEqual(new int[] { 1, 15 }, rule.DaysOfMonth);
+            CollectionAssert.AreEqual(new int[] { 1, 4, 7, 10 }, rule.Months);
+            CollectionAssert.AreEqual(new int[] { 1, 2, 3, 4, 5 }, rule.DaysOfWeek);
         }
 
-        [TestMethod("Full Cron 2")]
-        public void CronFull2() {
+        [TestMethod]
+        public void FromCron_WithFlexibleWhitespace_ParsesFields()
+        {
             var rule = new ScheduleRule()
-                .FromCron("0 1/1 * * *")
-                .Execute((a, b) => true);
+                .FromCron("  0\t12\n1 1\r0  ");
+
+            CollectionAssert.AreEqual(new int[] { 0 }, rule.Minutes);
+            CollectionAssert.AreEqual(new int[] { 12 }, rule.Hours);
+            CollectionAssert.AreEqual(new int[] { 1 }, rule.DaysOfMonth);
+            CollectionAssert.AreEqual(new int[] { 1 }, rule.Months);
+            CollectionAssert.AreEqual(new int[] { 0 }, rule.DaysOfWeek);
         }
 
-
-        [TestMethod("Full Cron 3")]
-        public void CronFull3() {
-            var rule = new ScheduleRule()
-                .FromCron("59 * * * *")
-                .Execute((a, b) => true);
+        [TestMethod]
+        public void FromCron_WithInvalidFieldCount_ThrowsArgumentException()
+        {
+            Throws<ArgumentException>(() => new ScheduleRule().FromCron("0 * * *"));
+            Throws<ArgumentException>(() => new ScheduleRule().FromCron("0 * * * * *"));
         }
 
-        // FAILIURES
-
-        [TestMethod("Fail 1")]
-        public void Fail1() {
-            var expression = ",1,2,3,4";
-            Throws<ArgumentException>(() => TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59));
+        [TestMethod]
+        public void CronField_OutOfBounds_ThrowsArgumentOutOfRangeException()
+        {
+            Throws<ArgumentOutOfRangeException>(() => ScheduleRule.ParseCronField("60", 59));
+            Throws<ArgumentOutOfRangeException>(() => ScheduleRule.ParseCronField("0", 12, 1));
+            Throws<ArgumentOutOfRangeException>(() => ScheduleRule.ParseCronField("*/61", 59));
         }
 
-        [TestMethod("Fail 2")]
-        public void Fail2() {
-            var expression = "-3";
-            Throws<ArgumentException>(() => TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59));
+        [TestMethod]
+        public void CronField_MalformedExpression_ThrowsArgumentException()
+        {
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField(null));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField(""));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField("1,2,"));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField(",1,2"));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField("3-"));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField("-3"));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField("-1"));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField("4(4"));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField("1 2"));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField("1//2"));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField("1/0"));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField("10-5"));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField("1,*"));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField("/5"));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField("*/"));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField("1/"));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField("1-2-3"));
+            Throws<ArgumentException>(() => ScheduleRule.ParseCronField("1/-2"));
         }
-
-        [TestMethod("Fail 3")]
-        public void Fail3() {
-            var expression = "0,-3";
-            Throws<ArgumentException>(() => TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59));
-        }
-
-        [TestMethod("Fail 4")]
-        public void Fail4() {
-            var expression = "1,2,3,4,";
-            Throws<ArgumentException>(() => TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59));
-        }
-
-        [TestMethod("Fail 5")]
-        public void Fail5() {
-            var expression = "3-";
-            Throws<ArgumentException>(() => TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59));
-        }
-
-        [TestMethod("Fail 6")]
-        public void Fail6() {
-            var expression = "0,3-";
-            Throws<ArgumentException>(() => TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59));
-        }
-
-        [TestMethod("Fail 7")]
-        public void Fail7() {
-            var expression = "4(4";
-            Throws<ArgumentException>(() => TaskSchedulerEngine.ScheduleRule.CalculateCronInts(expression, 59));
-        }
-
     }
 }
